@@ -1,0 +1,511 @@
+/**
+ * Admin Styles for Hotel Cash Up & Reconciliation
+ */
+
+/* General Styling */
+.hcr-cash-up-page,
+.hcr-history-page,
+.hcr-multi-day-report-page,
+.hcr-settings-page {
+    max-width: 1400px;
+}
+
+.hcr-cash-up-page h2,
+.hcr-cash-up-page h3 {
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.hcr-cash-up-page h2 {
+    font-size: 16px;
+}
+
+.hcr-cash-up-page h3 {
+    font-size: 13px;
+}
+
+.hcr-cash-up-page p {
+    margin: 6px 0;
+    font-size: 14px;
+}
+
+.hcr-message {
+    margin: 15px 0;
+    padding: 10px 15px;
+    border-left: 4px solid;
+}
+
+.hcr-message.notice-success {
+    border-color: #46b450;
+    background: #ecf7ed;
+}
+
+.hcr-message.notice-error {
+    border-color: #dc3232;
+    background: #f8d7da;
+}
+
+/* Floating Popup Messages */
+.hcr-floating-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 999999;
+    display: none;
+    min-width: 300px;
+    max-width: 500px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    animation: hcr-popup-slide-in 0.3s ease-out;
+}
+
+@keyframes hcr-popup-slide-in {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -60%);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+}
+
+.hcr-popup-content {
+    padding: 20px 25px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.hcr-popup-success .hcr-popup-content {
+    background: #ecf7ed;
+    border: 2px solid #46b450;
+    color: #155724;
+}
+
+.hcr-popup-error .hcr-popup-content {
+    background: #f8d7da;
+    border: 2px solid #dc3232;
+    color: #721c24;
+}
+
+.hcr-floating-popup p {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+/* Counting Grid - Side by Side Layout */
+.hcr-counting-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 12px 0;
+}
+
+.hcr-counting-section {
+    background: #fff;
+    border: 1px solid #ccc;
+    padding: 12px;
+    border-radius: 4px;
+}
+
+.hcr-counting-section h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 13px;
+    border-bottom: 2px solid #0073aa;
+    padding-bottom: 6px;
+}
+
+.hcr-counting-section p {
+    margin: 6px 0;
+    font-size: 14px;
+}
+
+/* Denomination Table */
+.hcr-denomination-table {
+    margin: 12px 0;
+    font-size: 12px;
+}
+
+.hcr-denomination-table th,
+.hcr-denomination-table td {
+    padding: 4px 6px !important;
+    font-size: 12px;
+}
+
+.hcr-denomination-table input[type="number"] {
+    width: 80px;
+    padding: 3px 5px;
+    font-size: 11px;
+}
+
+.hcr-denomination-table .denom-total {
+    font-weight: bold;
+    color: #0073aa;
+    font-size: 12px;
+}
+
+.hcr-total-row th {
+    background: #f1f1f1;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 6px !important;
+}
+
+.hcr-total-row #total-cash-counted {
+    color: #0073aa;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+/* Card Machines */
+.hcr-card-machines {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin: 12px 0;
+}
+
+.hcr-machine-section {
+    background: #fff;
+    border: 1px solid #ccc;
+    padding: 12px;
+    border-radius: 4px;
+}
+
+.hcr-machine-section h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 13px;
+    border-bottom: 2px solid #0073aa;
+    padding-bottom: 6px;
+}
+
+.hcr-machine-section .form-table th,
+.hcr-machine-section .form-table td {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.hcr-machine-section input[type="number"] {
+    width: 90px;
+    padding: 3px 5px;
+    font-size: 11px;
+}
+
+.hcr-machine-section .machine-visa-mc {
+    color: #0073aa;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.hcr-combined-totals h3 {
+    font-weight: bold;
+}
+
+.hcr-combined-totals span {
+    color: #0073aa;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+/* Reconciliation Table */
+.hcr-reconciliation-table {
+    margin: 12px 0;
+    font-size: 12px;
+}
+
+.hcr-reconciliation-table th,
+.hcr-reconciliation-table td {
+    padding: 4px 8px !important;
+    font-size: 12px;
+}
+
+.hcr-reconciliation-table th {
+    background: #0073aa;
+    color: #fff;
+}
+
+.hcr-reconciliation-table .hcr-variance-positive {
+    color: #46b450;
+    font-weight: bold;
+}
+
+.hcr-reconciliation-table .hcr-variance-negative {
+    color: #dc3232;
+    font-weight: bold;
+}
+
+.hcr-reconciliation-table .hcr-variance-zero {
+    color: #666;
+}
+
+/* Status Badges */
+.hcr-status-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 0.9em;
+    font-weight: bold;
+}
+
+.hcr-status-draft {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffc107;
+}
+
+.hcr-status-final {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #28a745;
+}
+
+/* History Page */
+.hcr-filters {
+    margin-bottom: 20px;
+}
+
+.hcr-filters label {
+    margin-right: 15px;
+}
+
+.hcr-filters input[type="date"],
+.hcr-filters select {
+    margin-right: 5px;
+}
+
+/* Buttons */
+.hcr-button-primary {
+    background: #0073aa;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 14px;
+}
+
+.hcr-button-primary:hover {
+    background: #005177;
+}
+
+.hcr-button-secondary {
+    background: #f3f5f6;
+    color: #2c3338;
+    border: 1px solid #2c3338;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 14px;
+}
+
+.hcr-button-secondary:hover {
+    background: #e5e9ec;
+}
+
+/* Report Tables */
+.hcr-report-section {
+    margin: 30px 0;
+    page-break-inside: avoid;
+}
+
+.hcr-report-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0;
+    background: #fff;
+    font-size: 13px;
+}
+
+.hcr-report-table th,
+.hcr-report-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: right;
+}
+
+.hcr-report-table th {
+    background: #0073aa;
+    color: #fff;
+    font-weight: bold;
+    text-align: center;
+}
+
+.hcr-report-table th:first-child,
+.hcr-report-table td:first-child {
+    text-align: left;
+    font-weight: 600;
+}
+
+.hcr-report-table .hcr-totals-row {
+    background: #f1f1f1;
+    font-weight: bold;
+    border-top: 2px solid #0073aa;
+}
+
+.hcr-report-table .hcr-variance-positive {
+    color: #46b450;
+}
+
+.hcr-report-table .hcr-variance-negative {
+    color: #dc3232;
+}
+
+.hcr-report-table .hcr-variance-zero {
+    color: #666;
+}
+
+/* Responsive Design */
+@media screen and (max-width: 782px) {
+    .hcr-counting-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hcr-card-machines {
+        grid-template-columns: 1fr;
+    }
+
+    .hcr-denomination-table input[type="number"] {
+        width: 80px;
+    }
+
+    .hcr-report-table {
+        font-size: 11px;
+    }
+
+    .hcr-report-table th,
+    .hcr-report-table td {
+        padding: 5px;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .wrap h1:not(.hcr-print-title),
+    .hcr-report-params,
+    .button,
+    .hcr-filters,
+    .description {
+        display: none !important;
+    }
+
+    .hcr-report-section {
+        page-break-after: always;
+        page-break-inside: avoid;
+    }
+
+    .hcr-report-section:last-child {
+        page-break-after: auto;
+    }
+
+    .hcr-report-table {
+        border: 1px solid #000;
+    }
+
+    .hcr-report-table th {
+        background: #e0e0e0 !important;
+        color: #000 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
+
+/* Loading Spinner */
+.hcr-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(0, 115, 170, 0.3);
+    border-radius: 50%;
+    border-top-color: #0073aa;
+    animation: hcr-spin 1s linear infinite;
+}
+
+@keyframes hcr-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Variance Styling */
+.hcr-variance-row th {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.hcr-variance-value {
+    font-weight: bold;
+}
+
+/* New variance color scheme */
+.hcr-variance-balanced {
+    color: #46b450; /* Green - balanced */
+}
+
+.hcr-variance-over {
+    color: #f0b429; /* Amber - over */
+}
+
+.hcr-variance-short {
+    color: #dc3232; /* Red - short */
+}
+
+/* Legacy support for old class names */
+.hcr-variance-positive {
+    color: #f0b429;
+}
+
+.hcr-variance-negative {
+    color: #dc3232;
+}
+
+/* Save Status Box */
+.hcr-save-status-box {
+    padding: 10px 15px;
+    margin-bottom: 15px;
+    border-left: 4px solid;
+    font-weight: 600;
+    border-radius: 2px;
+    display: inline-block;
+    max-width: 100%;
+}
+
+.hcr-save-status-box.hcr-status-unsaved {
+    background-color: #f8d7da;
+    border-color: #d63638;
+    color: #721c24;
+}
+
+.hcr-save-status-box.hcr-status-saved {
+    background-color: #d4edda;
+    border-color: #00a32a;
+    color: #155724;
+}
+
+/* Transaction Breakdown Section */
+#hcr-breakdown-toggle {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+#hcr-breakdown-toggle .dashicons {
+    transition: transform 0.2s ease;
+}
+
+.hcr-breakdown-subheading {
+    background-color: #f0f0f1;
+}
+
+.hcr-breakdown-subheading td {
+    padding: 8px 10px !important;
+    font-weight: 600;
+    color: #1d2327;
+    border-top: 1px solid #c3c4c7;
+}
+
+#hcr-reception-breakdown tr:not(.hcr-breakdown-subheading):hover,
+#hcr-restaurant-breakdown tr:not(.hcr-breakdown-subheading):hover {
+    background-color: #f6f7f7;
+}

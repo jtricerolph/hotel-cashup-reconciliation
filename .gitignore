@@ -1,0 +1,48 @@
+# Hotel Cash Up & Reconciliation Plugin - .gitignore
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Temporary files
+*.tmp
+*.temp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Log files
+*.log
+
+# Environment-specific files
+.env
+.env.local
+
+# Compiled/minified files (if applicable)
+*.min.js.map
+*.min.css.map
+
+# Node modules (if using build tools)
+node_modules/
+
+# Testing/development databases
+*.sql
+*.sqlite
+
+# Screenshots with potential sensitive data
+screenshots/
+
+# Project documentation
+md/
+
+# Any local configuration
+local-config.php
+wp-config-local.php

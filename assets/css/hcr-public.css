@@ -1,0 +1,476 @@
+/**
+ * Public Styles for Hotel Cash Up & Reconciliation
+ */
+
+.hcr-public-cash-up-form {
+    max-width: 900px;
+    margin: 14px auto;
+    padding: 14px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.hcr-public-cash-up-form h2 {
+    margin-top: 0;
+    padding-bottom: 7px;
+    border-bottom: 2px solid #0073aa;
+    font-size: 16px;
+}
+
+.hcr-public-cash-up-form h3 {
+    margin-top: 21px;
+    margin-bottom: 11px;
+    color: #0073aa;
+    font-size: 13px;
+}
+
+.hcr-public-cash-up-form h4 {
+    margin-top: 0;
+    margin-bottom: 7px;
+    font-size: 12px;
+}
+
+/* Messages */
+.hcr-message {
+    margin: 11px 0;
+    padding: 8px 11px;
+    border-left: 4px solid;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.hcr-message.success {
+    border-color: #46b450;
+    background: #ecf7ed;
+    color: #155724;
+}
+
+.hcr-message.error {
+    border-color: #dc3232;
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Floating Popup Messages */
+.hcr-floating-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 999999;
+    display: none;
+    min-width: 300px;
+    max-width: 500px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    animation: hcr-popup-slide-in 0.3s ease-out;
+}
+
+@keyframes hcr-popup-slide-in {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -60%);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+}
+
+.hcr-popup-content {
+    padding: 20px 25px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.hcr-popup-success .hcr-popup-content {
+    background: #ecf7ed;
+    border: 2px solid #46b450;
+    color: #155724;
+}
+
+.hcr-popup-error .hcr-popup-content {
+    background: #f8d7da;
+    border: 2px solid #dc3232;
+    color: #721c24;
+}
+
+.hcr-floating-popup p {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+/* Form Elements */
+.hcr-form-row {
+    margin: 11px 0;
+}
+
+.hcr-form-row label {
+    display: inline-block;
+    min-width: 80px;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.hcr-form-row input[type="date"] {
+    padding: 6px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.hcr-help-text {
+    color: #666;
+    font-size: 11px;
+    font-style: italic;
+    margin: 4px 0 11px 0;
+}
+
+/* Counting Grid - Side by Side Layout */
+.hcr-counting-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 14px 0;
+}
+
+.hcr-counting-section {
+    background: #f8f9fa;
+    padding: 11px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+
+.hcr-counting-section h4 {
+    margin-top: 0;
+    margin-bottom: 7px;
+    font-size: 13px;
+    color: #0073aa;
+    border-bottom: 2px solid #0073aa;
+    padding-bottom: 4px;
+}
+
+/* Denomination Table */
+.hcr-denomination-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 11px 0;
+    font-size: 12px;
+}
+
+.hcr-denomination-table th,
+.hcr-denomination-table td {
+    padding: 4px 6px;
+    border: 1px solid #ddd;
+    text-align: center;
+    font-size: 12px;
+}
+
+.hcr-denomination-table th {
+    background: #f8f9fa;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.hcr-denomination-table th:first-child,
+.hcr-denomination-table td:first-child {
+    text-align: left;
+}
+
+.hcr-denomination-table input[type="number"] {
+    width: 80px;
+    padding: 3px 5px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    text-align: right;
+    font-size: 11px;
+}
+
+.hcr-denomination-table .denom-total {
+    font-weight: bold;
+    color: #0073aa;
+    font-size: 12px;
+}
+
+.hcr-section-header {
+    background: #e9ecef;
+}
+
+.hcr-section-header td {
+    text-align: left !important;
+    padding: 4px 6px;
+    font-size: 12px;
+}
+
+.hcr-total-row {
+    background: #f1f1f1;
+    font-weight: bold;
+}
+
+.hcr-total-row th {
+    font-size: 12px;
+    padding: 6px;
+}
+
+#public-total-cash {
+    color: #0073aa;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+/* Card Machines */
+.hcr-machines-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin: 14px 0;
+}
+
+.hcr-machine-box {
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    padding: 14px;
+    border-radius: 5px;
+}
+
+.hcr-machine-box label {
+    display: block;
+    margin: 7px 0;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.hcr-machine-box input[type="number"] {
+    width: 90px;
+    padding: 3px 5px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    margin-left: 4px;
+    font-size: 11px;
+}
+
+.hcr-machine-box p {
+    margin: 7px 0;
+    font-size: 12px;
+}
+
+.hcr-machine-box strong {
+    color: #0073aa;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.hcr-combined-totals h4 {
+    font-weight: bold;
+}
+
+.hcr-combined-totals p {
+    margin: 7px 0;
+    font-size: 12px;
+}
+
+.hcr-combined-totals span {
+    color: #0073aa;
+    font-weight: bold;
+    font-size: 13px;
+}
+
+/* Notes */
+textarea {
+    width: 100%;
+    padding: 7px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 12px;
+    resize: vertical;
+}
+
+/* Buttons */
+.hcr-form-actions {
+    margin: 21px 0 7px 0;
+    text-align: right;
+    border-top: 1px solid #ddd;
+    padding-top: 14px;
+}
+
+.hcr-button-primary,
+.hcr-button-secondary {
+    padding: 8px 17px;
+    font-size: 13px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    margin-left: 7px;
+}
+
+.hcr-button-primary {
+    background: #0073aa;
+    color: #fff;
+    border: none;
+}
+
+.hcr-button-primary:hover {
+    background: #005177;
+}
+
+.hcr-button-primary:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.hcr-button-secondary {
+    background: #fff;
+    color: #0073aa;
+    border: 2px solid #0073aa;
+}
+
+.hcr-button-secondary:hover {
+    background: #f0f8ff;
+}
+
+.hcr-button-secondary:disabled {
+    background: #f5f5f5;
+    color: #999;
+    border-color: #ddd;
+    cursor: not-allowed;
+}
+
+/* Responsive Design */
+@media screen and (max-width: 768px) {
+    .hcr-public-cash-up-form {
+        padding: 11px;
+    }
+
+    .hcr-counting-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hcr-machines-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hcr-denomination-table {
+        font-size: 11px;
+    }
+
+    .hcr-denomination-table input[type="number"] {
+        width: 70px;
+        padding: 3px;
+        font-size: 10px;
+    }
+
+    .hcr-form-actions {
+        text-align: center;
+    }
+
+    .hcr-button-primary,
+    .hcr-button-secondary {
+        display: block;
+        width: 100%;
+        margin: 7px 0;
+    }
+}
+
+/* Variance Styling */
+.hcr-variance-row th {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.hcr-variance-value {
+    font-weight: bold;
+}
+
+/* New variance color scheme */
+.hcr-variance-balanced {
+    color: #46b450; /* Green - balanced */
+}
+
+.hcr-variance-over {
+    color: #f0b429; /* Amber - over */
+}
+
+.hcr-variance-short {
+    color: #dc3232; /* Red - short */
+}
+
+/* Legacy support for old class names */
+.hcr-variance-positive {
+    color: #f0b429;
+}
+
+.hcr-variance-negative {
+    color: #dc3232;
+}
+
+@media screen and (max-width: 480px) {
+    .hcr-denomination-table th,
+    .hcr-denomination-table td {
+        padding: 4px 3px;
+        font-size: 10px;
+    }
+
+    .hcr-denomination-table input[type="number"] {
+        width: 60px;
+        font-size: 10px;
+    }
+
+    .hcr-machine-box input[type="number"] {
+        width: 80px;
+        font-size: 10px;
+    }
+}
+
+/* Save Status Box */
+.hcr-save-status-box {
+    padding: 10px 15px;
+    margin-bottom: 15px;
+    border-left: 4px solid;
+    font-weight: 600;
+    border-radius: 2px;
+    display: inline-block;
+    max-width: 100%;
+}
+
+.hcr-save-status-box.hcr-status-unsaved {
+    background-color: #f8d7da;
+    border-color: #d63638;
+    color: #721c24;
+}
+
+.hcr-save-status-box.hcr-status-saved {
+    background-color: #d4edda;
+    border-color: #00a32a;
+    color: #155724;
+}
+
+/* Transaction Breakdown Section */
+#hcr-breakdown-toggle {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+#hcr-breakdown-toggle .dashicons {
+    transition: transform 0.2s ease;
+}
+
+.hcr-breakdown-subheading {
+    background-color: #f0f0f1;
+}
+
+.hcr-breakdown-subheading td {
+    padding: 8px 10px !important;
+    font-weight: 600;
+    color: #1d2327;
+    border-top: 1px solid #c3c4c7;
+}
+
+#hcr-reception-breakdown tr:not(.hcr-breakdown-subheading):hover,
+#hcr-restaurant-breakdown tr:not(.hcr-breakdown-subheading):hover {
+    background-color: #f6f7f7;
+}
