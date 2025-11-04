@@ -97,6 +97,46 @@ class HCR_Admin {
             array($this, 'display_multi_day_report')
         );
 
+        // Cash Count Summary submenu
+        add_submenu_page(
+            $this->plugin_name,
+            'Cash Count Summary',
+            'Cash Count Summary',
+            'edit_posts',
+            $this->plugin_name . '-cash-summary',
+            array($this, 'display_cash_summary_page')
+        );
+
+        // Petty Cash Float submenu
+        add_submenu_page(
+            $this->plugin_name,
+            'Petty Cash Float',
+            'Petty Cash Float',
+            'edit_posts',
+            $this->plugin_name . '-petty-cash',
+            array($this, 'display_petty_cash_page')
+        );
+
+        // Change Tin Float submenu
+        add_submenu_page(
+            $this->plugin_name,
+            'Change Tin Float',
+            'Change Tin Float',
+            'edit_posts',
+            $this->plugin_name . '-change-tin',
+            array($this, 'display_change_tin_page')
+        );
+
+        // Safe Cash submenu
+        add_submenu_page(
+            $this->plugin_name,
+            'Safe Cash',
+            'Safe Cash',
+            'edit_posts',
+            $this->plugin_name . '-safe-cash',
+            array($this, 'display_safe_cash_page')
+        );
+
         // Settings submenu
         add_submenu_page(
             $this->plugin_name,
@@ -129,6 +169,10 @@ class HCR_Admin {
 
         // Sales breakdown column settings
         register_setting('hcr_settings_group', 'hcr_sales_breakdown_columns', array('sanitize_callback' => array($this, 'sanitize_sales_columns')));
+
+        // Float management settings
+        register_setting('hcr_settings_group', 'hcr_petty_cash_float', array('sanitize_callback' => 'floatval'));
+        register_setting('hcr_settings_group', 'hcr_change_tin_breakdown', array('sanitize_callback' => array($this, 'sanitize_change_tin_breakdown')));
 
         // Add settings sections
         add_settings_section(
@@ -233,6 +277,32 @@ class HCR_Admin {
             array($this, 'sales_breakdown_columns_field_callback'),
             'hcr_settings',
             'hcr_sales_breakdown_section'
+        );
+
+        // Float Management section
+        add_settings_section(
+            'hcr_float_management_section',
+            'Float Management',
+            array($this, 'float_management_section_callback'),
+            'hcr_settings'
+        );
+
+        // Petty Cash Float field
+        add_settings_field(
+            'hcr_petty_cash_float',
+            'Petty Cash Float Amount',
+            array($this, 'petty_cash_float_field_callback'),
+            'hcr_settings',
+            'hcr_float_management_section'
+        );
+
+        // Change Tin Breakdown field
+        add_settings_field(
+            'hcr_change_tin_breakdown',
+            'Change Tin Breakdown',
+            array($this, 'change_tin_breakdown_field_callback'),
+            'hcr_settings',
+            'hcr_float_management_section'
         );
     }
 
@@ -544,6 +614,68 @@ class HCR_Admin {
     /**
      * Sanitize sales breakdown columns
      */
+    public function float_management_section_callback() {
+        echo '<p>Configure target amounts for petty cash and change tin floats.</p>';
+    }
+
+    public function petty_cash_float_field_callback() {
+        $value = get_option('hcr_petty_cash_float', '200.00');
+        echo '<input type="number" step="0.01" name="hcr_petty_cash_float" value="' . esc_attr($value) . '" class="regular-text" />';
+        echo '<p class="description">Target amount for petty cash float (e.g., £200.00)</p>';
+    }
+
+    public function change_tin_breakdown_field_callback() {
+        $breakdown = get_option('hcr_change_tin_breakdown', array());
+
+        if (empty($breakdown)) {
+            $breakdown = array(
+                '50.00' => 0,
+                '20.00' => 0,
+                '10.00' => 0,
+                '5.00' => 0,
+                '2.00' => 20.00,
+                '1.00' => 20.00,
+                '0.50' => 10.00,
+                '0.20' => 10.00,
+                '0.10' => 5.00,
+                '0.05' => 5.00
+            );
+        } else if (is_string($breakdown)) {
+            $breakdown = json_decode($breakdown, true);
+        }
+
+        $denominations = array(
+            '50.00' => '£50 notes',
+            '20.00' => '£20 notes',
+            '10.00' => '£10 notes',
+            '5.00' => '£5 notes',
+            '2.00' => '£2 bags (£20 per bag)',
+            '1.00' => '£1 bags (£20 per bag)',
+            '0.50' => '50p bags (£10 per bag)',
+            '0.20' => '20p bags (£10 per bag)',
+            '0.10' => '10p bags (£5 per bag)',
+            '0.05' => '5p bags (£5 per bag)'
+        );
+
+        echo '<table class="widefat" style="max-width: 600px;">';
+        echo '<thead><tr><th>Denomination</th><th>Target Amount (£)</th></tr></thead>';
+        echo '<tbody>';
+
+        foreach ($denominations as $denom => $label) {
+            $amount = isset($breakdown[$denom]) ? $breakdown[$denom] : 0;
+            echo '<tr>';
+            echo '<td>' . esc_html($label) . '</td>';
+            echo '<td><input type="number" step="0.01" name="hcr_change_tin_breakdown[' . esc_attr($denom) . ']" value="' . esc_attr($amount) . '" style="width: 100px;" /></td>';
+            echo '</tr>';
+        }
+
+        echo '</tbody></table>';
+        echo '<p class="description">Set target amounts for each denomination. Bags hold: 5p/10p=£5, 20p/50p=£10, £1/£2=£20</p>';
+    }
+
+    /**
+     * Sanitize sales breakdown columns
+     */
     public function sanitize_sales_columns($input) {
         if (!is_array($input)) {
             return array();
@@ -557,6 +689,21 @@ class HCR_Admin {
                 'enabled' => isset($column['enabled']) ? true : false,
                 'sort_order' => intval($column['sort_order'])
             );
+        }
+
+        return $sanitized;
+    }
+
+    public function sanitize_change_tin_breakdown($input) {
+        if (!is_array($input)) {
+            return array();
+        }
+
+        $sanitized = array();
+        foreach ($input as $denomination => $amount) {
+            $denomination = floatval($denomination);
+            $amount = floatval($amount);
+            $sanitized[number_format($denomination, 2, '.', '')] = $amount;
         }
 
         return $sanitized;
@@ -589,5 +736,33 @@ class HCR_Admin {
             wp_die('Access denied');
         }
         include_once HCR_PLUGIN_DIR . 'admin/views/admin-settings.php';
+    }
+
+    public function display_cash_summary_page() {
+        if (!current_user_can('edit_posts')) {
+            wp_die('Access denied');
+        }
+        include_once HCR_PLUGIN_DIR . 'admin/views/cash-summary.php';
+    }
+
+    public function display_petty_cash_page() {
+        if (!current_user_can('edit_posts')) {
+            wp_die('Access denied');
+        }
+        include_once HCR_PLUGIN_DIR . 'admin/views/petty-cash.php';
+    }
+
+    public function display_change_tin_page() {
+        if (!current_user_can('edit_posts')) {
+            wp_die('Access denied');
+        }
+        include_once HCR_PLUGIN_DIR . 'admin/views/change-tin.php';
+    }
+
+    public function display_safe_cash_page() {
+        if (!current_user_can('edit_posts')) {
+            wp_die('Access denied');
+        }
+        include_once HCR_PLUGIN_DIR . 'admin/views/safe-cash.php';
     }
 }

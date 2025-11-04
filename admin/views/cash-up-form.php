@@ -22,7 +22,7 @@ $auto_load = isset($_GET['date']) ? 'true' : 'false';
     <div id="hcr-date-selector" style="background: #fff; padding: 12px 15px; border: 1px solid #ccd0d4; border-radius: 3px; margin: 10px 0;">
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 0;">
             <label for="session_date" style="margin: 0; font-weight: 600;">Session Date:</label>
-            <input type="date" id="session_date" name="session_date" value="<?php echo esc_attr($default_date); ?>" required style="margin: 0;">
+            <input type="date" id="session_date" name="session_date" value="<?php echo esc_attr($default_date); ?>" max="<?php echo date('Y-m-d', strtotime('+1 day')); ?>" required style="margin: 0;">
             <button type="button" id="hcr-check-date" class="button button-primary">Check Date</button>
         </div>
         <div id="hcr-date-actions" style="display:none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #dcdcde;">

@@ -12,8 +12,16 @@ global $wpdb;
 
 // Get filter parameters
 $status_filter = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : '';
-$date_from = isset($_GET['date_from']) ? sanitize_text_field($_GET['date_from']) : '';
-$date_to = isset($_GET['date_to']) ? sanitize_text_field($_GET['date_to']) : '';
+
+// Default to last 30 days if no filters are set
+$has_filters = isset($_GET['date_from']) || isset($_GET['date_to']) || isset($_GET['status']);
+if (!$has_filters) {
+    $date_from = date('Y-m-d', strtotime('-30 days'));
+    $date_to = date('Y-m-d');
+} else {
+    $date_from = isset($_GET['date_from']) ? sanitize_text_field($_GET['date_from']) : '';
+    $date_to = isset($_GET['date_to']) ? sanitize_text_field($_GET['date_to']) : '';
+}
 
 // Build query
 $query = "SELECT cu.*, u.display_name as created_by_name
@@ -52,6 +60,9 @@ if (!empty($query_params)) {
 
     <!-- Filters -->
     <div class="hcr-filters" style="background: #fff; padding: 15px; margin-bottom: 20px; border: 1px solid #ccc;">
+        <?php if (!$has_filters): ?>
+            <p class="description" style="margin-top: 0;">Showing last 30 days by default. Use filters below to view other date ranges.</p>
+        <?php endif; ?>
         <form method="get">
             <input type="hidden" name="page" value="<?php echo esc_attr($_GET['page']); ?>">
 

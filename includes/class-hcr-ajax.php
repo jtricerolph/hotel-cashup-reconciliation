@@ -577,32 +577,25 @@ class HCR_Ajax {
             $sites_data = array();
         }
 
-        // Fetch balance data for the day BEFORE the start date (for Period Open)
-        $day_before_start = date('Y-m-d', strtotime($start_date . ' - 1 day'));
-        $period_open_balance = $api->fetch_debtors_creditors_balance($day_before_start);
-        if ($period_open_balance === false) {
-            $period_open_balance = array(
+        // Skip debtors/creditors balance fetching - will be loaded lazily via separate AJAX call
+        // This significantly speeds up initial report load
+        $period_open_balance = array(
+            'creditors' => 0.00,
+            'debtors' => 0.00,
+            'overall' => 0.00,
+            'accounts' => array(),
+            'loading' => true  // Flag to indicate data not yet loaded
+        );
+
+        $balances_by_date = array();
+        foreach ($dates as $date) {
+            $balances_by_date[$date] = array(
                 'creditors' => 0.00,
                 'debtors' => 0.00,
                 'overall' => 0.00,
-                'accounts' => array()
+                'accounts' => array(),
+                'loading' => true  // Flag to indicate data not yet loaded
             );
-        }
-
-        // Fetch balance data for each date
-        $balances_by_date = array();
-        foreach ($dates as $date) {
-            $balance_data = $api->fetch_debtors_creditors_balance($date);
-            if ($balance_data !== false) {
-                $balances_by_date[$date] = $balance_data;
-            } else {
-                $balances_by_date[$date] = array(
-                    'creditors' => 0.00,
-                    'debtors' => 0.00,
-                    'overall' => 0.00,
-                    'accounts' => array()
-                );
-            }
         }
 
         // Load sales breakdown column settings
@@ -894,6 +887,68 @@ class HCR_Ajax {
     }
 
     /**
+     * Handle fetch debtors/creditors balance data (lazy loaded)
+     */
+    public function handle_fetch_debtors_creditors_data() {
+        check_ajax_referer('hcr_admin_nonce', 'nonce');
+
+        if (!is_user_logged_in() || !current_user_can('edit_posts')) {
+            wp_send_json_error(array('message' => 'Permission denied.'));
+            return;
+        }
+
+        $start_date = sanitize_text_field($_POST['start_date']);
+        $num_days = intval($_POST['num_days']);
+
+        if ($num_days < 1 || $num_days > 365) {
+            wp_send_json_error(array('message' => 'Number of days must be between 1 and 365.'));
+            return;
+        }
+
+        // Generate array of dates
+        $dates = array();
+        for ($i = 0; $i < $num_days; $i++) {
+            $dates[] = date('Y-m-d', strtotime($start_date . ' + ' . $i . ' days'));
+        }
+
+        // Initialize Newbook API
+        $api = new HCR_Newbook_API();
+
+        // Fetch balance data for the day BEFORE the start date (for Period Open)
+        $day_before_start = date('Y-m-d', strtotime($start_date . ' - 1 day'));
+        $period_open_balance = $api->fetch_debtors_creditors_balance($day_before_start);
+        if ($period_open_balance === false) {
+            $period_open_balance = array(
+                'creditors' => 0.00,
+                'debtors' => 0.00,
+                'overall' => 0.00,
+                'accounts' => array()
+            );
+        }
+
+        // Fetch balance data for each date
+        $balances_by_date = array();
+        foreach ($dates as $date) {
+            $balance_data = $api->fetch_debtors_creditors_balance($date);
+            if ($balance_data !== false) {
+                $balances_by_date[$date] = $balance_data;
+            } else {
+                $balances_by_date[$date] = array(
+                    'creditors' => 0.00,
+                    'debtors' => 0.00,
+                    'overall' => 0.00,
+                    'accounts' => array()
+                );
+            }
+        }
+
+        wp_send_json_success(array(
+            'balances_by_date' => $balances_by_date,
+            'period_open_balance' => $period_open_balance
+        ));
+    }
+
+    /**
      * Handle test Newbook API connection
      */
     public function handle_test_connection() {
@@ -1107,5 +1162,527 @@ class HCR_Ajax {
         }
 
         wp_send_json_success(array('message' => $message));
+    }
+
+    /**
+     * Handle generate cash summary
+     */
+    public function handle_generate_cash_summary() {
+        check_ajax_referer('hcr_cash_summary_nonce', 'nonce');
+
+        if (!is_user_logged_in() || !current_user_can('edit_posts')) {
+            wp_send_json_error('Permission denied.');
+            return;
+        }
+
+        global $wpdb;
+
+        $date_from = sanitize_text_field($_POST['date_from']);
+        $date_to = sanitize_text_field($_POST['date_to']);
+
+        if (empty($date_from) || empty($date_to)) {
+            wp_send_json_error('Date range is required.');
+            return;
+        }
+
+        // Query denominations from cash ups in date range where count_type = 'takings'
+        $cash_ups_table = $wpdb->prefix . 'hcr_cash_ups';
+        $denominations_table = $wpdb->prefix . 'hcr_denominations';
+
+        $results = $wpdb->get_results($wpdb->prepare(
+            "SELECT d.denomination_value, SUM(d.quantity) as total_quantity, SUM(d.total_amount) as total_value
+             FROM $denominations_table d
+             INNER JOIN $cash_ups_table c ON d.cash_up_id = c.id
+             WHERE c.session_date >= %s AND c.session_date <= %s
+             AND d.count_type = 'takings'
+             GROUP BY d.denomination_value
+             ORDER BY d.denomination_value DESC",
+            $date_from,
+            $date_to
+        ), ARRAY_A);
+
+        // Build denominations array keyed by denomination value
+        $denominations = array();
+        foreach ($results as $row) {
+            $denom_key = number_format(floatval($row['denomination_value']), 2, '.', '');
+            $denominations[$denom_key] = array(
+                'quantity' => intval($row['total_quantity']),
+                'value' => floatval($row['total_value'])
+            );
+        }
+
+        wp_send_json_success(array(
+            'denominations' => $denominations,
+            'period' => array(
+                'from' => date('d/m/Y', strtotime($date_from)),
+                'to' => date('d/m/Y', strtotime($date_to))
+            )
+        ));
+    }
+
+    /**
+     * Handle save petty cash count
+     */
+    public function handle_save_petty_cash_count() {
+        check_ajax_referer('hcr_petty_cash_nonce', 'nonce');
+
+        if (!is_user_logged_in() || !current_user_can('edit_posts')) {
+            wp_send_json_error('Permission denied.');
+            return;
+        }
+
+        global $wpdb;
+
+        $count_date = sanitize_text_field($_POST['count_date']);
+        $denominations = isset($_POST['denominations']) ? $_POST['denominations'] : array();
+        $receipts = isset($_POST['receipts']) ? $_POST['receipts'] : array();
+        $total_counted = floatval($_POST['total_counted']);
+        $total_receipts = floatval($_POST['total_receipts']);
+        $target_amount = floatval($_POST['target_amount']);
+        $variance = floatval($_POST['variance']);
+        $notes = sanitize_textarea_field($_POST['notes']);
+
+        // Insert float count record
+        $float_counts_table = $wpdb->prefix . 'hcr_float_counts';
+        $result = $wpdb->insert(
+            $float_counts_table,
+            array(
+                'count_type' => 'petty_cash',
+                'count_date' => $count_date,
+                'created_by' => get_current_user_id(),
+                'total_counted' => $total_counted,
+                'total_receipts' => $total_receipts,
+                'target_amount' => $target_amount,
+                'variance' => $variance,
+                'notes' => $notes
+            ),
+            array('%s', '%s', '%d', '%f', '%f', '%f', '%f', '%s')
+        );
+
+        if ($result === false) {
+            error_log('HCR: Failed to insert petty cash count: ' . $wpdb->last_error);
+            wp_send_json_error('Failed to save count.');
+            return;
+        }
+
+        $count_id = $wpdb->insert_id;
+
+        // Insert denominations
+        $float_denominations_table = $wpdb->prefix . 'hcr_float_denominations';
+        foreach ($denominations as $denom) {
+            $wpdb->insert(
+                $float_denominations_table,
+                array(
+                    'float_count_id' => $count_id,
+                    'denomination_value' => floatval($denom['denomination']),
+                    'quantity' => intval($denom['quantity']),
+                    'total_amount' => floatval($denom['total'])
+                ),
+                array('%d', '%f', '%d', '%f')
+            );
+        }
+
+        // Insert receipts
+        $float_receipts_table = $wpdb->prefix . 'hcr_float_receipts';
+        foreach ($receipts as $receipt) {
+            $wpdb->insert(
+                $float_receipts_table,
+                array(
+                    'float_count_id' => $count_id,
+                    'receipt_value' => floatval($receipt['amount']),
+                    'receipt_description' => sanitize_text_field($receipt['description'])
+                ),
+                array('%d', '%f', '%s')
+            );
+        }
+
+        wp_send_json_success(array('message' => 'Count saved successfully.', 'count_id' => $count_id));
+    }
+
+    /**
+     * Handle load petty cash counts
+     */
+    public function handle_load_petty_cash_counts() {
+        check_ajax_referer('hcr_petty_cash_nonce', 'nonce');
+
+        if (!is_user_logged_in() || !current_user_can('edit_posts')) {
+            wp_send_json_error('Permission denied.');
+            return;
+        }
+
+        global $wpdb;
+
+        $offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
+        $limit = isset($_POST['limit']) ? intval($_POST['limit']) : 10;
+
+        $float_counts_table = $wpdb->prefix . 'hcr_float_counts';
+        $counts = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $float_counts_table
+             WHERE count_type = 'petty_cash'
+             ORDER BY count_date DESC
+             LIMIT %d OFFSET %d",
+            $limit,
+            $offset
+        ), ARRAY_A);
+
+        // Format dates
+        foreach ($counts as &$count) {
+            $count['count_date'] = date('d/m/Y H:i:s', strtotime($count['count_date']));
+        }
+
+        // Check if there are more records
+        $total_count = $wpdb->get_var("SELECT COUNT(*) FROM $float_counts_table WHERE count_type = 'petty_cash'");
+        $has_more = ($offset + count($counts)) < $total_count;
+
+        wp_send_json_success(array('counts' => $counts, 'has_more' => $has_more));
+    }
+
+    /**
+     * Handle get petty cash count details
+     */
+    public function handle_get_petty_cash_count() {
+        check_ajax_referer('hcr_petty_cash_nonce', 'nonce');
+
+        if (!is_user_logged_in() || !current_user_can('edit_posts')) {
+            wp_send_json_error('Permission denied.');
+            return;
+        }
+
+        global $wpdb;
+
+        $count_id = intval($_POST['count_id']);
+
+        // Get count record
+        $float_counts_table = $wpdb->prefix . 'hcr_float_counts';
+        $count = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $float_counts_table WHERE id = %d",
+            $count_id
+        ), ARRAY_A);
+
+        if (!$count) {
+            wp_send_json_error('Count not found.');
+            return;
+        }
+
+        // Get denominations
+        $float_denominations_table = $wpdb->prefix . 'hcr_float_denominations';
+        $denominations = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $float_denominations_table WHERE float_count_id = %d ORDER BY denomination_value DESC",
+            $count_id
+        ), ARRAY_A);
+
+        // Get receipts
+        $float_receipts_table = $wpdb->prefix . 'hcr_float_receipts';
+        $receipts = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $float_receipts_table WHERE float_count_id = %d",
+            $count_id
+        ), ARRAY_A);
+
+        // Get created by user name
+        $user = get_userdata($count['created_by']);
+        $count['created_by_name'] = $user ? $user->display_name : 'Unknown';
+
+        // Format date
+        $count['count_date'] = date('d/m/Y H:i:s', strtotime($count['count_date']));
+
+        // Add denominations and receipts to count
+        $count['denominations'] = $denominations;
+        $count['receipts'] = $receipts;
+
+        wp_send_json_success($count);
+    }
+
+    /**
+     * Handle save change tin count
+     */
+    public function handle_save_change_tin_count() {
+        check_ajax_referer('hcr_change_tin_nonce', 'nonce');
+
+        if (!is_user_logged_in() || !current_user_can('edit_posts')) {
+            wp_send_json_error('Permission denied.');
+            return;
+        }
+
+        global $wpdb;
+
+        $count_date = sanitize_text_field($_POST['count_date']);
+        $denominations = isset($_POST['denominations']) ? $_POST['denominations'] : array();
+        $total_counted = floatval($_POST['total_counted']);
+        $target_amount = floatval($_POST['target_amount']);
+        $variance = floatval($_POST['variance']);
+        $notes = sanitize_textarea_field($_POST['notes']);
+
+        // Insert float count record
+        $float_counts_table = $wpdb->prefix . 'hcr_float_counts';
+        $result = $wpdb->insert(
+            $float_counts_table,
+            array(
+                'count_type' => 'change_tin',
+                'count_date' => $count_date,
+                'created_by' => get_current_user_id(),
+                'total_counted' => $total_counted,
+                'total_receipts' => 0.00, // No receipts for change tin
+                'target_amount' => $target_amount,
+                'variance' => $variance,
+                'notes' => $notes
+            ),
+            array('%s', '%s', '%d', '%f', '%f', '%f', '%f', '%s')
+        );
+
+        if ($result === false) {
+            error_log('HCR: Failed to insert change tin count: ' . $wpdb->last_error);
+            wp_send_json_error('Failed to save count.');
+            return;
+        }
+
+        $count_id = $wpdb->insert_id;
+
+        // Insert denominations
+        $float_denominations_table = $wpdb->prefix . 'hcr_float_denominations';
+        foreach ($denominations as $denom) {
+            $wpdb->insert(
+                $float_denominations_table,
+                array(
+                    'float_count_id' => $count_id,
+                    'denomination_value' => floatval($denom['denomination']),
+                    'quantity' => intval($denom['quantity']),
+                    'total_amount' => floatval($denom['total'])
+                ),
+                array('%d', '%f', '%d', '%f')
+            );
+        }
+
+        wp_send_json_success(array('message' => 'Count saved successfully.', 'count_id' => $count_id));
+    }
+
+    /**
+     * Handle load change tin counts
+     */
+    public function handle_load_change_tin_counts() {
+        check_ajax_referer('hcr_change_tin_nonce', 'nonce');
+
+        if (!is_user_logged_in() || !current_user_can('edit_posts')) {
+            wp_send_json_error('Permission denied.');
+            return;
+        }
+
+        global $wpdb;
+
+        $offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
+        $limit = isset($_POST['limit']) ? intval($_POST['limit']) : 10;
+
+        $float_counts_table = $wpdb->prefix . 'hcr_float_counts';
+        $counts = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $float_counts_table
+             WHERE count_type = 'change_tin'
+             ORDER BY count_date DESC
+             LIMIT %d OFFSET %d",
+            $limit,
+            $offset
+        ), ARRAY_A);
+
+        // Format dates
+        foreach ($counts as &$count) {
+            $count['count_date'] = date('d/m/Y H:i:s', strtotime($count['count_date']));
+        }
+
+        // Check if there are more records
+        $total_count = $wpdb->get_var("SELECT COUNT(*) FROM $float_counts_table WHERE count_type = 'change_tin'");
+        $has_more = ($offset + count($counts)) < $total_count;
+
+        wp_send_json_success(array('counts' => $counts, 'has_more' => $has_more));
+    }
+
+    /**
+     * Handle get change tin count details
+     */
+    public function handle_get_change_tin_count() {
+        check_ajax_referer('hcr_change_tin_nonce', 'nonce');
+
+        if (!is_user_logged_in() || !current_user_can('edit_posts')) {
+            wp_send_json_error('Permission denied.');
+            return;
+        }
+
+        global $wpdb;
+
+        $count_id = intval($_POST['count_id']);
+
+        // Get count record
+        $float_counts_table = $wpdb->prefix . 'hcr_float_counts';
+        $count = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $float_counts_table WHERE id = %d",
+            $count_id
+        ), ARRAY_A);
+
+        if (!$count) {
+            wp_send_json_error('Count not found.');
+            return;
+        }
+
+        // Get denominations
+        $float_denominations_table = $wpdb->prefix . 'hcr_float_denominations';
+        $denominations = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $float_denominations_table WHERE float_count_id = %d ORDER BY denomination_value DESC",
+            $count_id
+        ), ARRAY_A);
+
+        // Get created by user name
+        $user = get_userdata($count['created_by']);
+        $count['created_by_name'] = $user ? $user->display_name : 'Unknown';
+
+        // Format date
+        $count['count_date'] = date('d/m/Y H:i:s', strtotime($count['count_date']));
+
+        // Add denominations to count
+        $count['denominations'] = $denominations;
+
+        wp_send_json_success($count);
+    }
+
+    /**
+     * Handle save safe cash count
+     */
+    public function handle_save_safe_cash_count() {
+        check_ajax_referer('hcr_safe_cash_nonce', 'nonce');
+
+        if (!is_user_logged_in() || !current_user_can('edit_posts')) {
+            wp_send_json_error('Permission denied.');
+            return;
+        }
+
+        global $wpdb;
+
+        $count_date = sanitize_text_field($_POST['count_date']);
+        $denominations = isset($_POST['denominations']) ? $_POST['denominations'] : array();
+        $total_counted = floatval($_POST['total_counted']);
+        $notes = sanitize_textarea_field($_POST['notes']);
+
+        // Insert float count record
+        $float_counts_table = $wpdb->prefix . 'hcr_float_counts';
+        $result = $wpdb->insert(
+            $float_counts_table,
+            array(
+                'count_type' => 'safe_cash',
+                'count_date' => $count_date,
+                'created_by' => get_current_user_id(),
+                'total_counted' => $total_counted,
+                'total_receipts' => 0.00, // No receipts for safe cash
+                'target_amount' => 0.00, // No target for safe cash
+                'variance' => 0.00, // No variance for safe cash
+                'notes' => $notes
+            ),
+            array('%s', '%s', '%d', '%f', '%f', '%f', '%f', '%s')
+        );
+
+        if ($result === false) {
+            error_log('HCR: Failed to insert safe cash count: ' . $wpdb->last_error);
+            wp_send_json_error('Failed to save count.');
+            return;
+        }
+
+        $count_id = $wpdb->insert_id;
+
+        // Insert denominations
+        $float_denominations_table = $wpdb->prefix . 'hcr_float_denominations';
+        foreach ($denominations as $denom) {
+            $wpdb->insert(
+                $float_denominations_table,
+                array(
+                    'float_count_id' => $count_id,
+                    'denomination_value' => floatval($denom['denomination']),
+                    'quantity' => intval($denom['quantity']),
+                    'total_amount' => floatval($denom['total'])
+                ),
+                array('%d', '%f', '%d', '%f')
+            );
+        }
+
+        wp_send_json_success(array('message' => 'Count saved successfully.', 'count_id' => $count_id));
+    }
+
+    /**
+     * Handle load safe cash counts
+     */
+    public function handle_load_safe_cash_counts() {
+        check_ajax_referer('hcr_safe_cash_nonce', 'nonce');
+
+        if (!is_user_logged_in() || !current_user_can('edit_posts')) {
+            wp_send_json_error('Permission denied.');
+            return;
+        }
+
+        global $wpdb;
+
+        $offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
+        $limit = isset($_POST['limit']) ? intval($_POST['limit']) : 10;
+
+        $float_counts_table = $wpdb->prefix . 'hcr_float_counts';
+        $counts = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $float_counts_table
+             WHERE count_type = 'safe_cash'
+             ORDER BY count_date DESC
+             LIMIT %d OFFSET %d",
+            $limit,
+            $offset
+        ), ARRAY_A);
+
+        // Format dates
+        foreach ($counts as &$count) {
+            $count['count_date'] = date('d/m/Y H:i:s', strtotime($count['count_date']));
+        }
+
+        // Check if there are more records
+        $total_count = $wpdb->get_var("SELECT COUNT(*) FROM $float_counts_table WHERE count_type = 'safe_cash'");
+        $has_more = ($offset + count($counts)) < $total_count;
+
+        wp_send_json_success(array('counts' => $counts, 'has_more' => $has_more));
+    }
+
+    /**
+     * Handle get safe cash count details
+     */
+    public function handle_get_safe_cash_count() {
+        check_ajax_referer('hcr_safe_cash_nonce', 'nonce');
+
+        if (!is_user_logged_in() || !current_user_can('edit_posts')) {
+            wp_send_json_error('Permission denied.');
+            return;
+        }
+
+        global $wpdb;
+
+        $count_id = intval($_POST['count_id']);
+
+        // Get count record
+        $float_counts_table = $wpdb->prefix . 'hcr_float_counts';
+        $count = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $float_counts_table WHERE id = %d",
+            $count_id
+        ), ARRAY_A);
+
+        if (!$count) {
+            wp_send_json_error('Count not found.');
+            return;
+        }
+
+        // Get denominations
+        $float_denominations_table = $wpdb->prefix . 'hcr_float_denominations';
+        $denominations = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $float_denominations_table WHERE float_count_id = %d ORDER BY denomination_value DESC",
+            $count_id
+        ), ARRAY_A);
+
+        // Get created by user name
+        $user = get_userdata($count['created_by']);
+        $count['created_by_name'] = $user ? $user->display_name : 'Unknown';
+
+        // Format date
+        $count['count_date'] = date('d/m/Y H:i:s', strtotime($count['count_date']));
+
+        // Add denominations to count
+        $count['denominations'] = $denominations;
+
+        wp_send_json_success($count);
     }
 }

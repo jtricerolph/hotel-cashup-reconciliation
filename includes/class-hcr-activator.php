@@ -131,6 +131,50 @@ class HCR_Activator {
             KEY category (category)
         ) $charset_collate;";
 
+        // Table 8: Float Counts (Petty Cash and Change Tin)
+        $float_counts_table = $wpdb->prefix . 'hcr_float_counts';
+        $sql_float_counts = "CREATE TABLE IF NOT EXISTS $float_counts_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            count_type varchar(20) NOT NULL,
+            count_date datetime NOT NULL,
+            created_by bigint(20) NOT NULL,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            total_counted decimal(10,2) DEFAULT 0.00,
+            total_receipts decimal(10,2) DEFAULT 0.00,
+            target_amount decimal(10,2) DEFAULT 0.00,
+            variance decimal(10,2) DEFAULT 0.00,
+            notes text,
+            PRIMARY KEY (id),
+            KEY count_type (count_type),
+            KEY count_date (count_date),
+            KEY created_by (created_by)
+        ) $charset_collate;";
+
+        // Table 9: Float Denomination Counts
+        $float_denominations_table = $wpdb->prefix . 'hcr_float_denominations';
+        $sql_float_denominations = "CREATE TABLE IF NOT EXISTS $float_denominations_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            float_count_id bigint(20) NOT NULL,
+            denomination_value decimal(10,2) NOT NULL,
+            quantity int DEFAULT 0,
+            total_amount decimal(10,2) NOT NULL,
+            PRIMARY KEY (id),
+            KEY float_count_id (float_count_id),
+            FOREIGN KEY (float_count_id) REFERENCES $float_counts_table(id) ON DELETE CASCADE
+        ) $charset_collate;";
+
+        // Table 10: Float Receipts (for petty cash)
+        $float_receipts_table = $wpdb->prefix . 'hcr_float_receipts';
+        $sql_float_receipts = "CREATE TABLE IF NOT EXISTS $float_receipts_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            float_count_id bigint(20) NOT NULL,
+            receipt_value decimal(10,2) NOT NULL,
+            receipt_description varchar(255),
+            PRIMARY KEY (id),
+            KEY float_count_id (float_count_id),
+            FOREIGN KEY (float_count_id) REFERENCES $float_counts_table(id) ON DELETE CASCADE
+        ) $charset_collate;";
+
         // Execute table creation
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql_cash_ups);
@@ -140,6 +184,9 @@ class HCR_Activator {
         dbDelta($sql_reconciliation);
         dbDelta($sql_daily_stats);
         dbDelta($sql_sales_breakdown);
+        dbDelta($sql_float_counts);
+        dbDelta($sql_float_denominations);
+        dbDelta($sql_float_receipts);
 
         // Set default options
         add_option('hcr_newbook_api_username', '');
@@ -159,6 +206,23 @@ class HCR_Activator {
         add_option('hcr_sync_frequency', 'daily');
         add_option('hcr_default_report_days', '7');
         add_option('hcr_variance_threshold', '10.00');
+
+        // Float management settings
+        add_option('hcr_petty_cash_float', '200.00'); // Default petty cash float amount
+
+        // Change tin breakdown - default breakdown by denomination
+        add_option('hcr_change_tin_breakdown', json_encode(array(
+            '50.00' => 0,    // £50 notes
+            '20.00' => 0,    // £20 notes
+            '10.00' => 0,    // £10 notes
+            '5.00' => 0,     // £5 notes
+            '2.00' => 20.00, // £2 bags (1 bag = £20)
+            '1.00' => 20.00, // £1 bags (1 bag = £20)
+            '0.50' => 10.00, // 50p bags (1 bag = £10)
+            '0.20' => 10.00, // 20p bags (1 bag = £10)
+            '0.10' => 5.00,  // 10p bags (1 bag = £5)
+            '0.05' => 5.00   // 5p bags (1 bag = £5)
+        )));
 
         // Flush rewrite rules
         flush_rewrite_rules();

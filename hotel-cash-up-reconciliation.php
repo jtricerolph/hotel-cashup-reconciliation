@@ -3,7 +3,7 @@
  * Plugin Name: Hotel Cash Up & Reconciliation Reporting
  * Plugin URI: https://yourwebsite.com
  * Description: Daily cash counting, payment reconciliation, and multi-day reporting for hotel operations integrated with Newbook PMS
- * Version: 1.7.0
+ * Version: 2.1.3
  * Author: Your Hotel
  * Author URI: https://yourwebsite.com
  * License: GPL v2 or later
@@ -17,7 +17,7 @@ if (!defined('WPINC')) {
 }
 
 // Define plugin constants
-define('HCR_VERSION', '1.7.0');
+define('HCR_VERSION', '2.1.3');
 define('HCR_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HCR_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('HCR_PLUGIN_BASENAME', plugin_basename(__FILE__));

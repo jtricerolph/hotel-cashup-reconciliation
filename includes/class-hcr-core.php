@@ -75,11 +75,31 @@ class HCR_Core {
 
         // Report actions
         add_action('wp_ajax_hcr_generate_multi_day_report', array($plugin_ajax, 'handle_generate_multi_day_report'));
+        add_action('wp_ajax_hcr_fetch_debtors_creditors_data', array($plugin_ajax, 'handle_fetch_debtors_creditors_data'));
         add_action('wp_ajax_hcr_export_to_excel', array($plugin_ajax, 'handle_export_to_excel'));
 
         // Settings actions
         add_action('wp_ajax_hcr_test_connection', array($plugin_ajax, 'handle_test_connection'));
         add_action('wp_ajax_hcr_refresh_gl_accounts', array($plugin_ajax, 'handle_refresh_gl_accounts'));
+
+        // Float management actions
+        // Cash summary
+        add_action('wp_ajax_hcr_generate_cash_summary', array($plugin_ajax, 'handle_generate_cash_summary'));
+
+        // Petty cash
+        add_action('wp_ajax_hcr_save_petty_cash_count', array($plugin_ajax, 'handle_save_petty_cash_count'));
+        add_action('wp_ajax_hcr_load_petty_cash_counts', array($plugin_ajax, 'handle_load_petty_cash_counts'));
+        add_action('wp_ajax_hcr_get_petty_cash_count', array($plugin_ajax, 'handle_get_petty_cash_count'));
+
+        // Change tin
+        add_action('wp_ajax_hcr_save_change_tin_count', array($plugin_ajax, 'handle_save_change_tin_count'));
+        add_action('wp_ajax_hcr_load_change_tin_counts', array($plugin_ajax, 'handle_load_change_tin_counts'));
+        add_action('wp_ajax_hcr_get_change_tin_count', array($plugin_ajax, 'handle_get_change_tin_count'));
+
+        // Safe cash
+        add_action('wp_ajax_hcr_save_safe_cash_count', array($plugin_ajax, 'handle_save_safe_cash_count'));
+        add_action('wp_ajax_hcr_load_safe_cash_counts', array($plugin_ajax, 'handle_load_safe_cash_counts'));
+        add_action('wp_ajax_hcr_get_safe_cash_count', array($plugin_ajax, 'handle_get_safe_cash_count'));
     }
 
     /**

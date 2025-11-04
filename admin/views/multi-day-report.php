@@ -306,6 +306,11 @@ $default_days = get_option('hcr_default_report_days', 7);
 
     <!-- Custom tooltip -->
     <div id="hcr-tooltip" class="hcr-custom-tooltip"></div>
+
+    <!-- Selection Tooltip -->
+    <div id="selection-tooltip" style="display: none; position: fixed; bottom: 20px; right: 20px; background: #f9f9f9; border: 2px solid #0078d4; padding: 10px 15px; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 10000; font-size: 13px;">
+        <div id="tooltip-content"></div>
+    </div>
 </div>
 
 <style>
@@ -594,6 +599,11 @@ jQuery(document).ready(function($) {
                     $('#hcr-print-report').show();
                     $message.removeClass('notice-error').addClass('notice-success')
                         .html('<p>Report generated successfully!</p>').show();
+
+                    // Check if debtors/creditors data needs to be loaded (lazy loading)
+                    if (periodOpenBalance && periodOpenBalance.loading) {
+                        fetchDebtorsCreditors(startDate, numDays);
+                    }
                 } else {
                     $message.removeClass('notice-success').addClass('notice-error')
                         .html('<p>' + response.data.message + '</p>').show();
@@ -614,6 +624,56 @@ jQuery(document).ready(function($) {
     $('#hcr-print-report').on('click', function() {
         window.print();
     });
+
+    // Fetch debtors/creditors data (lazy loaded)
+    function fetchDebtorsCreditors(startDate, numDays) {
+        var $message = $('#hcr-message');
+
+        // Show loading indicator in the balances table
+        $('.hcr-balance-loading').text('Loading debtors/creditors data...');
+
+        $.ajax({
+            url: ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'hcr_fetch_debtors_creditors_data',
+                start_date: startDate,
+                num_days: numDays,
+                nonce: hcrAdmin.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Update the global variables with the fetched data
+                    balancesByDate = response.data.balances_by_date || {};
+                    periodOpenBalance = response.data.period_open_balance || null;
+
+                    // Re-render the balances table with the new data
+                    renderBalancesTable(reportData);
+
+                    // Reinitialize Excel-like selection for the updated table
+                    setTimeout(function() {
+                        enhanceTableSelection();
+                        initializeCustomTooltips();
+                    }, 100);
+
+                    $message.removeClass('notice-error').addClass('notice-success')
+                        .html('<p>Debtors/Creditors data loaded successfully!</p>').show();
+                    setTimeout(function() {
+                        $message.fadeOut();
+                    }, 3000);
+                } else {
+                    $('.hcr-balance-loading').text('Error loading debtors/creditors data');
+                    $message.removeClass('notice-success').addClass('notice-error')
+                        .html('<p>Error loading debtors/creditors: ' + (response.data.message || 'Unknown error') + '</p>').show();
+                }
+            },
+            error: function() {
+                $('.hcr-balance-loading').text('Error loading debtors/creditors data');
+                $message.removeClass('notice-success').addClass('notice-error')
+                    .html('<p>Network error while loading debtors/creditors data.</p>').show();
+            }
+        });
+    }
 
     // Render report tables
     function renderReport(data) {
@@ -928,7 +988,7 @@ jQuery(document).ready(function($) {
         // Clear existing
         header.find('th:not(:first)').remove();
         tbody.empty();
-        footer.find('th:not(:first)').remove();
+        footer.find('th:not(:first), td').remove(); // Remove both th and td elements
 
         // Use custom columns from settings (already sorted and filtered by backend)
         if (!salesColumns || salesColumns.length === 0) {
@@ -1018,6 +1078,10 @@ jQuery(document).ready(function($) {
         var auditTotalCell = formatAuditCell(grandTotals.audit, grandAuditVariance, true);
         footer.append(auditTotalCell);
 
+        // Remove any previously added warnings and messages
+        $('#hcr-table-sales').siblings('.notice-warning').remove();
+        $('#hcr-table-sales').siblings('[style*="border-left: 3px solid #999"]').remove();
+
         // Show audit warning if there's a mismatch (missing GL accounts)
         if (hasAuditMismatch) {
             var warningHtml = '<div class="notice notice-warning" style="margin-top: 10px; padding: 10px;">' +
@@ -1056,7 +1120,7 @@ jQuery(document).ready(function($) {
         // Clear existing content
         header.find('th:not(:first)').remove();
         tbody.empty();
-        footer.find('th:not(:first)').remove();
+        footer.find('th:not(:first), td').remove(); // Remove both th and td elements
 
         // Add column headers
         header.append('<th>Rooms</th>');
@@ -1068,32 +1132,34 @@ jQuery(document).ready(function($) {
         header.append('<th>GGR</th>');
         header.append('<th>Avg Lead Time</th>');
 
-        // Build GL account mapping for accommodation revenue lookup
-        var glAccountMap = {};
+        // Build GL group mapping for accommodation revenue lookup
+        var glGroupMap = {};
         if (glAccounts && Array.isArray(glAccounts)) {
             glAccounts.forEach(function(account) {
-                var glAccountId = account.gl_account_id;
                 var glGroupId = account.gl_group_id;
                 var glGroupName = account.gl_group_name || '';
 
-                glAccountMap[glAccountId] = {
-                    group_id: glGroupId,
-                    group_name: glGroupName
-                };
+                // Use first occurrence of each group (they should all have same name)
+                if (!glGroupMap[glGroupId]) {
+                    glGroupMap[glGroupId] = {
+                        group_name: glGroupName
+                    };
+                }
             });
         }
 
         // Build accommodation revenue by date from earnedRevenue
+        // Note: earnedRevenue is now aggregated by gl_group_id (changed in PHP)
         var accomRevenueByDate = {};
         if (earnedRevenue && Array.isArray(earnedRevenue)) {
             earnedRevenue.forEach(function(item) {
                 var period = item.period ? item.period.substring(0, 10) : '';
-                var glAccountId = item.gl_account_id;
+                var glGroupId = item.gl_group_id;
                 var amountNet = parseFloat(item.earned_revenue_ex || 0);
 
-                if (!period || !glAccountId) return;
+                if (!period || !glGroupId) return;
 
-                var glInfo = glAccountMap[glAccountId];
+                var glInfo = glGroupMap[glGroupId];
                 if (!glInfo) return;
 
                 var glGroupName = glInfo.group_name;
@@ -1526,27 +1592,35 @@ jQuery(document).ready(function($) {
 
         // Render Period Open row (balance from day before start date)
         if (periodOpenBalance) {
-            var openCreditors = periodOpenBalance.creditors || 0;
-            var openDebtors = periodOpenBalance.debtors || 0;
-            var openOverall = periodOpenBalance.overall || 0;
-
             var openRow = $('<tr class="hcr-period-row hcr-period-open-row"></tr>');
             openRow.append('<td>Period Open</td>');
-            openRow.append('<td>£' + formatMoney(openCreditors) + '</td>');
-            openRow.append('<td>£' + formatMoney(openDebtors) + '</td>');
 
-            // Style overall balance based on positive/negative
-            var openOverallCell = $('<td></td>');
-            if (openOverall > 0) {
-                openOverallCell.text('£' + formatMoney(openOverall));
-                openOverallCell.css('color', '#155724'); // Green for positive
-            } else if (openOverall < 0) {
-                openOverallCell.text('-£' + formatMoney(Math.abs(openOverall)));
-                openOverallCell.css('color', '#721c24'); // Red for negative
+            // Check if data is still loading
+            if (periodOpenBalance.loading) {
+                openRow.append('<td colspan="3" class="hcr-balance-loading" style="text-align: center; font-style: italic; color: #666;">Loading...</td>');
             } else {
-                openOverallCell.text('£0.00');
+                var openCreditors = periodOpenBalance.creditors || 0;
+                var openDebtors = periodOpenBalance.debtors || 0;
+                var openOverall = periodOpenBalance.overall || 0;
+
+                // Creditors displayed as negative (we owe this amount) - using £-X.XX format for Excel compatibility
+                openRow.append('<td>£-' + formatMoney(Math.abs(openCreditors)) + '</td>');
+                openRow.append('<td>£' + formatMoney(openDebtors) + '</td>');
+
+                // Style overall balance based on positive/negative
+                var openOverallCell = $('<td></td>');
+                if (openOverall > 0) {
+                    openOverallCell.text('£' + formatMoney(openOverall));
+                    openOverallCell.css('color', '#155724'); // Green for positive
+                } else if (openOverall < 0) {
+                    // Use £-X.XX format for better Excel copy/paste compatibility
+                    openOverallCell.text('£-' + formatMoney(Math.abs(openOverall)));
+                    openOverallCell.css('color', '#721c24'); // Red for negative
+                } else {
+                    openOverallCell.text('£0.00');
+                }
+                openRow.append(openOverallCell);
             }
-            openRow.append(openOverallCell);
 
             tbody.append(openRow);
         }
@@ -1560,34 +1634,42 @@ jQuery(document).ready(function($) {
                 return;
             }
 
-            var creditors = balanceData.creditors || 0;
-            var debtors = balanceData.debtors || 0;
-            var overall = balanceData.overall || 0;
-
-            // Track the last day's values for period close
-            if (index === data.length - 1) {
-                lastDayCreditors = creditors;
-                lastDayDebtors = debtors;
-                lastDayOverall = overall;
-            }
-
             var row = $('<tr></tr>');
             row.append('<td>' + formatDate(date) + '</td>');
-            row.append('<td>£' + formatMoney(creditors) + '</td>');
-            row.append('<td>£' + formatMoney(debtors) + '</td>');
 
-            // Style overall balance based on positive/negative
-            var overallCell = $('<td></td>');
-            if (overall > 0) {
-                overallCell.text('£' + formatMoney(overall));
-                overallCell.css('color', '#155724'); // Green for positive
-            } else if (overall < 0) {
-                overallCell.text('-£' + formatMoney(Math.abs(overall)));
-                overallCell.css('color', '#721c24'); // Red for negative
+            // Check if data is still loading
+            if (balanceData.loading) {
+                row.append('<td colspan="3" class="hcr-balance-loading" style="text-align: center; font-style: italic; color: #666;">Loading...</td>');
             } else {
-                overallCell.text('£0.00');
+                var creditors = balanceData.creditors || 0;
+                var debtors = balanceData.debtors || 0;
+                var overall = balanceData.overall || 0;
+
+                // Track the last day's values for period close
+                if (index === data.length - 1) {
+                    lastDayCreditors = creditors;
+                    lastDayDebtors = debtors;
+                    lastDayOverall = overall;
+                }
+
+                // Creditors displayed as negative (we owe this amount) - using £-X.XX format for Excel compatibility
+                row.append('<td>£-' + formatMoney(Math.abs(creditors)) + '</td>');
+                row.append('<td>£' + formatMoney(debtors) + '</td>');
+
+                // Style overall balance based on positive/negative
+                var overallCell = $('<td></td>');
+                if (overall > 0) {
+                    overallCell.text('£' + formatMoney(overall));
+                    overallCell.css('color', '#155724'); // Green for positive
+                } else if (overall < 0) {
+                    // Use £-X.XX format for better Excel copy/paste compatibility
+                    overallCell.text('£-' + formatMoney(Math.abs(overall)));
+                    overallCell.css('color', '#721c24'); // Red for negative
+                } else {
+                    overallCell.text('£0.00');
+                }
+                row.append(overallCell);
             }
-            row.append(overallCell);
 
             tbody.append(row);
         });
@@ -1595,7 +1677,8 @@ jQuery(document).ready(function($) {
         // Render period close row (last day's values)
         footer.addClass('hcr-period-row hcr-period-close-row');
         footer.html('<th>Period Close</th>');
-        footer.append('<th>£' + formatMoney(lastDayCreditors) + '</th>');
+        // Creditors displayed as negative (we owe this amount) - using £-X.XX format for Excel compatibility
+        footer.append('<th>£-' + formatMoney(Math.abs(lastDayCreditors)) + '</th>');
         footer.append('<th>£' + formatMoney(lastDayDebtors) + '</th>');
 
         var closeOverallCell = $('<th></th>');
@@ -1603,7 +1686,8 @@ jQuery(document).ready(function($) {
             closeOverallCell.text('£' + formatMoney(lastDayOverall));
             closeOverallCell.css('color', '#155724'); // Green for positive
         } else if (lastDayOverall < 0) {
-            closeOverallCell.text('-£' + formatMoney(Math.abs(lastDayOverall)));
+            // Use £-X.XX format for better Excel copy/paste compatibility
+            closeOverallCell.text('£-' + formatMoney(Math.abs(lastDayOverall)));
             closeOverallCell.css('color', '#721c24'); // Red for negative
         } else {
             closeOverallCell.text('£0.00');
@@ -1674,11 +1758,11 @@ jQuery(document).ready(function($) {
             if (variance < 0) {
                 // Negative variance (banked < reported) - Red background
                 bgColor = '#ffcccc';
-                varianceHtml = '<span class="hcr-variance-inline">▼ -£' + formatMoney(Math.abs(variance)) + '</span>';
+                varianceHtml = '<span class="hcr-variance-inline">▼ £-' + formatMoney(Math.abs(variance)) + '</span>';
             } else {
                 // Positive variance (banked > reported) - Amber background
                 bgColor = '#ffe6b3';
-                varianceHtml = '<span class="hcr-variance-inline">▲ +£' + formatMoney(variance) + '</span>';
+                varianceHtml = '<span class="hcr-variance-inline">▲ £+' + formatMoney(variance) + '</span>';
             }
         }
 
@@ -1696,11 +1780,11 @@ jQuery(document).ready(function($) {
             if (variance < 0) {
                 // Negative variance (audit < reported) - Red background
                 bgColor = '#ffcccc';
-                varianceHtml = '<span class="hcr-variance-inline">▼ -£' + formatMoney(Math.abs(variance)) + '</span>';
+                varianceHtml = '<span class="hcr-variance-inline">▼ £-' + formatMoney(Math.abs(variance)) + '</span>';
             } else {
                 // Positive variance (audit > reported) - Amber background
                 bgColor = '#ffe6b3';
-                varianceHtml = '<span class="hcr-variance-inline">▲ +£' + formatMoney(variance) + '</span>';
+                varianceHtml = '<span class="hcr-variance-inline">▲ £+' + formatMoney(variance) + '</span>';
             }
         }
 
@@ -1796,11 +1880,11 @@ jQuery(document).ready(function($) {
             if (variance < 0) {
                 $element.addClass('hcr-variance-short');
                 bgColor = '#ffcccc';
-                varianceHtml = '<span class="hcr-variance-inline">▼ -£' + formatMoney(Math.abs(variance)) + '</span>';
+                varianceHtml = '<span class="hcr-variance-inline">▼ £-' + formatMoney(Math.abs(variance)) + '</span>';
             } else {
                 $element.addClass('hcr-variance-over');
                 bgColor = '#ffe6b3';
-                varianceHtml = '<span class="hcr-variance-inline">▲ +£' + formatMoney(variance) + '</span>';
+                varianceHtml = '<span class="hcr-variance-inline">▲ £+' + formatMoney(variance) + '</span>';
             }
         } else {
             $element.addClass('hcr-variance-balanced');
@@ -1823,11 +1907,11 @@ jQuery(document).ready(function($) {
             if (variance < 0) {
                 $element.addClass('hcr-variance-short');
                 bgColor = '#ffcccc';
-                varianceHtml = '<span class="hcr-variance-inline">▼ -£' + formatMoney(Math.abs(variance)) + '</span>';
+                varianceHtml = '<span class="hcr-variance-inline">▼ £-' + formatMoney(Math.abs(variance)) + '</span>';
             } else {
                 $element.addClass('hcr-variance-over');
                 bgColor = '#ffe6b3';
-                varianceHtml = '<span class="hcr-variance-inline">▲ +£' + formatMoney(variance) + '</span>';
+                varianceHtml = '<span class="hcr-variance-inline">▲ £+' + formatMoney(variance) + '</span>';
             }
         } else {
             $element.addClass('hcr-variance-balanced');
@@ -1973,11 +2057,14 @@ jQuery(document).ready(function($) {
                     }
                 }
             }
+
+            updateSelectionTooltip();
         }
 
         function clearSelection() {
             $('.hcr-cell-selected').removeClass('hcr-cell-selected');
             selectedCells = [];
+            $('#selection-tooltip').hide();
         }
 
         function copySelectedCellsToClipboard(event) {
@@ -2042,6 +2129,48 @@ jQuery(document).ready(function($) {
             if (event.clipboardData) {
                 event.clipboardData.setData('text/plain', clipboardText);
             }
+        }
+
+        function updateSelectionTooltip() {
+            if (selectedCells.length === 0) {
+                $('#selection-tooltip').hide();
+                return;
+            }
+
+            var count = selectedCells.length;
+            var sum = 0;
+            var numericCount = 0;
+
+            selectedCells.forEach(function(cell) {
+                var $cell = $(cell);
+                var text = $cell.text().trim();
+
+                // Remove variance indicators if present
+                if ($cell.find('.hcr-variance-inline').length > 0) {
+                    var $clone = $cell.clone();
+                    $clone.find('.hcr-variance-inline').remove();
+                    text = $clone.text().trim();
+                }
+
+                // Remove currency symbols, commas, percentage signs and parse
+                var value = parseFloat(text.replace(/[£,%]/g, '').replace(/,/g, ''));
+                if (!isNaN(value)) {
+                    sum += value;
+                    numericCount++;
+                }
+            });
+
+            var tooltipText = '<strong>Selected:</strong> ' + count + ' cell' + (count !== 1 ? 's' : '');
+            if (numericCount > 0) {
+                tooltipText += ' | <strong>Sum:</strong> £' + sum.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                if (numericCount > 1) {
+                    var avg = sum / numericCount;
+                    tooltipText += ' | <strong>Avg:</strong> £' + avg.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                }
+            }
+
+            $('#tooltip-content').html(tooltipText);
+            $('#selection-tooltip').show();
         }
     }
 
