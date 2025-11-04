@@ -35,8 +35,18 @@ class HCR_Ajax {
         $status = sanitize_text_field($_POST['status']); // 'draft' or 'final'
         $notes = sanitize_textarea_field($_POST['notes']);
         $machine_photo_id = isset($_POST['machine_photo_id']) && !empty($_POST['machine_photo_id']) ? intval($_POST['machine_photo_id']) : null;
-        $denominations = isset($_POST['denominations']) ? $_POST['denominations'] : array();
-        $card_machines = isset($_POST['card_machines']) ? $_POST['card_machines'] : array();
+
+        // Decode JSON strings from FormData
+        $denominations = isset($_POST['denominations']) ? json_decode(stripslashes($_POST['denominations']), true) : array();
+        $card_machines = isset($_POST['card_machines']) ? json_decode(stripslashes($_POST['card_machines']), true) : array();
+
+        // Fallback to direct array if not JSON encoded (for backwards compatibility)
+        if (!is_array($denominations)) {
+            $denominations = isset($_POST['denominations']) ? $_POST['denominations'] : array();
+        }
+        if (!is_array($card_machines)) {
+            $card_machines = isset($_POST['card_machines']) ? $_POST['card_machines'] : array();
+        }
 
         // Validate required fields
         if (empty($session_date)) {
@@ -173,9 +183,83 @@ class HCR_Ajax {
             );
         }
 
+        // Handle file uploads for receipt photos
+        if (isset($_FILES['receipt_photos']) && !empty($_FILES['receipt_photos']['name'][0])) {
+            require_once(ABSPATH . 'wp-admin/includes/file.php');
+
+            $attachments_table = $wpdb->prefix . 'hcr_cash_count_attachments';
+            $upload_overrides = array('test_form' => false);
+            $uploaded_files = array();
+
+            // Process each uploaded file
+            foreach ($_FILES['receipt_photos']['name'] as $key => $filename) {
+                if ($_FILES['receipt_photos']['error'][$key] === UPLOAD_ERR_OK) {
+                    // Validate file size (5MB max)
+                    if ($_FILES['receipt_photos']['size'][$key] > 5 * 1024 * 1024) {
+                        error_log('HCR: File too large: ' . $filename);
+                        continue;
+                    }
+
+                    // Validate file type
+                    $file_type = $_FILES['receipt_photos']['type'][$key];
+                    $allowed_types = array('image/jpeg', 'image/jpg', 'image/png', 'application/pdf');
+                    if (!in_array($file_type, $allowed_types)) {
+                        error_log('HCR: Invalid file type: ' . $file_type);
+                        continue;
+                    }
+
+                    // Prepare file array for wp_handle_upload
+                    $file = array(
+                        'name' => $_FILES['receipt_photos']['name'][$key],
+                        'type' => $_FILES['receipt_photos']['type'][$key],
+                        'tmp_name' => $_FILES['receipt_photos']['tmp_name'][$key],
+                        'error' => $_FILES['receipt_photos']['error'][$key],
+                        'size' => $_FILES['receipt_photos']['size'][$key]
+                    );
+
+                    // Upload file
+                    $uploaded_file = wp_handle_upload($file, $upload_overrides);
+
+                    if (isset($uploaded_file['file'])) {
+                        // Insert file record into attachments table
+                        $wpdb->insert(
+                            $attachments_table,
+                            array(
+                                'cash_up_id' => $cash_up_id,
+                                'file_name' => sanitize_file_name($filename),
+                                'file_path' => $uploaded_file['url'],
+                                'file_type' => $file_type,
+                                'file_size' => $_FILES['receipt_photos']['size'][$key],
+                                'uploaded_by' => get_current_user_id()
+                            ),
+                            array('%d', '%s', '%s', '%s', '%d', '%d')
+                        );
+
+                        // Store uploaded file info (match format from database query)
+                        $uploaded_files[] = array(
+                            'id' => $wpdb->insert_id,
+                            'file_name' => $filename,
+                            'file_path' => $uploaded_file['url'],
+                            'file_type' => $file_type
+                        );
+                    } else {
+                        error_log('HCR: File upload failed: ' . print_r($uploaded_file, true));
+                    }
+                }
+            }
+        }
+
+        // Get all attachments for this cash up (including newly uploaded ones)
+        $all_attachments = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hcr_cash_count_attachments WHERE cash_up_id = %d ORDER BY uploaded_at DESC",
+            $cash_up_id
+        ), ARRAY_A);
+
         wp_send_json_success(array(
             'message' => $status === 'final' ? 'Cash up submitted successfully!' : 'Cash up saved as draft.',
-            'cash_up_id' => $cash_up_id
+            'cash_up_id' => $cash_up_id,
+            'uploaded_files' => isset($uploaded_files) ? $uploaded_files : array(),
+            'attachments' => $all_attachments
         ));
     }
 
@@ -240,12 +324,19 @@ class HCR_Ajax {
             $photo_url = wp_get_attachment_url($cash_up->machine_photo_id);
         }
 
+        // Get attached receipt photos
+        $attachments = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}hcr_cash_count_attachments WHERE cash_up_id = %d ORDER BY uploaded_at DESC",
+            $cash_up->id
+        ), ARRAY_A);
+
         wp_send_json_success(array(
             'cash_up' => $cash_up,
             'denominations' => $denominations,
             'card_machines' => $card_machines,
             'reconciliation' => $reconciliation,
-            'photo_url' => $photo_url
+            'photo_url' => $photo_url,
+            'attachments' => $attachments
         ));
     }
 
@@ -1684,5 +1775,176 @@ class HCR_Ajax {
         $count['denominations'] = $denominations;
 
         wp_send_json_success($count);
+    }
+
+    /**
+     * Handle delete attachment
+     */
+    public function handle_delete_attachment() {
+        // Verify nonce - accept both admin and public nonces
+        $nonce_valid = false;
+        if (isset($_POST['nonce'])) {
+            $nonce_valid = wp_verify_nonce($_POST['nonce'], 'hcr_admin_nonce') ||
+                          wp_verify_nonce($_POST['nonce'], 'hcr_public_nonce');
+        }
+
+        if (!$nonce_valid) {
+            wp_send_json_error(array('message' => 'Security check failed.'));
+            return;
+        }
+
+        // Check user permissions
+        if (!is_user_logged_in() || !current_user_can('edit_posts')) {
+            wp_send_json_error(array('message' => 'Permission denied.'));
+            return;
+        }
+
+        global $wpdb;
+        $attachment_id = isset($_POST['attachment_id']) ? intval($_POST['attachment_id']) : 0;
+
+        if (!$attachment_id) {
+            wp_send_json_error(array('message' => 'Invalid attachment ID.'));
+            return;
+        }
+
+        $attachments_table = $wpdb->prefix . 'hcr_cash_count_attachments';
+
+        // Get attachment details before deleting
+        $attachment = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $attachments_table WHERE id = %d",
+            $attachment_id
+        ), ARRAY_A);
+
+        if (!$attachment) {
+            wp_send_json_error(array('message' => 'Attachment not found.'));
+            return;
+        }
+
+        // Delete the file from the filesystem
+        $file_path = str_replace(wp_upload_dir()['baseurl'], wp_upload_dir()['basedir'], $attachment['file_path']);
+        if (file_exists($file_path)) {
+            wp_delete_file($file_path);
+        }
+
+        // Delete from database
+        $result = $wpdb->delete(
+            $attachments_table,
+            array('id' => $attachment_id),
+            array('%d')
+        );
+
+        if ($result === false) {
+            wp_send_json_error(array('message' => 'Failed to delete attachment.'));
+            return;
+        }
+
+        wp_send_json_success(array('message' => 'Photo deleted successfully.'));
+    }
+
+    /**
+     * Handle purge receipt photos
+     */
+    public function handle_purge_receipt_photos() {
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'hcr_admin_nonce')) {
+            wp_send_json_error(array('message' => 'Security check failed.'));
+            return;
+        }
+
+        // Check user permissions (only administrators can purge)
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Permission denied. Only administrators can purge photos.'));
+            return;
+        }
+
+        global $wpdb;
+        $purge_date = isset($_POST['purge_date']) ? sanitize_text_field($_POST['purge_date']) : '';
+
+        if (!$purge_date) {
+            wp_send_json_error(array('message' => 'Invalid date provided.'));
+            return;
+        }
+
+        // Validate date format
+        $date_obj = DateTime::createFromFormat('Y-m-d', $purge_date);
+        if (!$date_obj) {
+            wp_send_json_error(array('message' => 'Invalid date format.'));
+            return;
+        }
+
+        // Get all attachments from cash ups before the purge date
+        $attachments_table = $wpdb->prefix . 'hcr_cash_count_attachments';
+        $cash_ups_table = $wpdb->prefix . 'hcr_cash_ups';
+
+        $attachments = $wpdb->get_results($wpdb->prepare(
+            "SELECT a.* FROM $attachments_table a
+            INNER JOIN $cash_ups_table c ON a.cash_up_id = c.id
+            WHERE c.session_date < %s
+            ORDER BY a.id ASC",
+            $purge_date
+        ), ARRAY_A);
+
+        if (empty($attachments)) {
+            wp_send_json_success(array(
+                'message' => 'No receipt photos found before ' . date('d/m/Y', strtotime($purge_date)) . '.',
+                'purge_date' => $purge_date,
+                'deleted_count' => 0
+            ));
+            return;
+        }
+
+        $deleted_count = 0;
+        $failed_count = 0;
+        $upload_dir = wp_upload_dir();
+
+        foreach ($attachments as $attachment) {
+            // Delete the physical file
+            $file_path = str_replace($upload_dir['baseurl'], $upload_dir['basedir'], $attachment['file_path']);
+
+            $file_deleted = false;
+            if (file_exists($file_path)) {
+                $file_deleted = wp_delete_file($file_path);
+            } else {
+                // File doesn't exist, still delete from database
+                $file_deleted = true;
+            }
+
+            // Delete from database
+            if ($file_deleted) {
+                $result = $wpdb->delete(
+                    $attachments_table,
+                    array('id' => $attachment['id']),
+                    array('%d')
+                );
+
+                if ($result !== false) {
+                    $deleted_count++;
+                } else {
+                    $failed_count++;
+                    error_log('HCR: Failed to delete attachment record from database: ID ' . $attachment['id']);
+                }
+            } else {
+                $failed_count++;
+                error_log('HCR: Failed to delete file: ' . $file_path);
+            }
+        }
+
+        // Update last purge date option
+        update_option('hcr_last_photo_purge_date', $purge_date);
+
+        // Log the purge action
+        error_log('HCR: Photo purge completed. Deleted: ' . $deleted_count . ', Failed: ' . $failed_count . ', Date: ' . $purge_date . ', User: ' . get_current_user_id());
+
+        $message = 'Successfully deleted ' . $deleted_count . ' receipt photo(s) from submissions before ' . date('d/m/Y', strtotime($purge_date)) . '.';
+        if ($failed_count > 0) {
+            $message .= ' ' . $failed_count . ' photo(s) could not be deleted.';
+        }
+
+        wp_send_json_success(array(
+            'message' => $message,
+            'purge_date' => $purge_date,
+            'deleted_count' => $deleted_count,
+            'failed_count' => $failed_count
+        ));
     }
 }

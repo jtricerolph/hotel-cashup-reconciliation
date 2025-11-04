@@ -339,6 +339,12 @@ textarea {
     cursor: not-allowed;
 }
 
+.hcr-button-secondary .dashicons,
+.hcr-button-primary .dashicons {
+    vertical-align: middle;
+    margin-right: 5px;
+}
+
 /* Responsive Design */
 @media screen and (max-width: 768px) {
     .hcr-public-cash-up-form {
@@ -473,4 +479,163 @@ textarea {
 #hcr-reception-breakdown tr:not(.hcr-breakdown-subheading):hover,
 #hcr-restaurant-breakdown tr:not(.hcr-breakdown-subheading):hover {
     background-color: #f6f7f7;
+}
+
+/* Row Selection for Transaction Breakdown */
+.hcr-selectable-row {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.hcr-selectable-row:hover {
+    background-color: #f6f7f7;
+}
+
+.hcr-selectable-row.hcr-row-selected {
+    background-color: #d4edda !important;
+    border-left: 3px solid #28a745;
+}
+
+.hcr-selectable-row.hcr-row-selected:hover {
+    background-color: #c3e6cb !important;
+}
+
+/* Receipt Photos Grid */
+.hcr-photos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.hcr-photo-thumbnail {
+    position: relative;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    padding: 5px;
+    text-align: center;
+    background: #f9f9f9;
+    transition: all 0.2s ease;
+    cursor: default;
+}
+
+.hcr-photo-remove {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 24px;
+    height: 24px;
+    background: #d63638;
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+    line-height: 1;
+    z-index: 10;
+    transition: background 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.hcr-photo-remove:hover {
+    background: #a02020;
+}
+
+.hcr-photo-thumbnail.hcr-existing-photo {
+    cursor: pointer;
+}
+
+.hcr-photo-thumbnail.hcr-existing-photo:hover {
+    border-color: #0073aa;
+    box-shadow: 0 2px 8px rgba(0, 115, 170, 0.2);
+    transform: translateY(-2px);
+}
+
+.hcr-photo-thumbnail img {
+    width: 100%;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 3px;
+    margin-bottom: 5px;
+}
+
+.hcr-photo-thumbnail.hcr-pdf-thumbnail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 80px;
+}
+
+.hcr-photo-thumbnail.hcr-pdf-thumbnail .dashicons {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: #d63638;
+}
+
+.hcr-photo-name {
+    font-size: 11px;
+    color: #666;
+    margin-top: 5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Image Popup Overlay */
+#hcr-image-popup-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 999999;
+    justify-content: center;
+    align-items: center;
+}
+
+#hcr-image-popup-content {
+    position: relative;
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 90%;
+    max-height: 90%;
+    overflow: auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+#hcr-image-popup-content h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 16px;
+}
+
+#hcr-image-popup-content img {
+    max-width: 100%;
+    max-height: 70vh;
+    display: block;
+    margin: 0 auto;
+}
+
+#hcr-image-popup-close {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 32px;
+    font-weight: bold;
+    color: #999;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s ease;
+}
+
+#hcr-image-popup-close:hover {
+    color: #333;
 }

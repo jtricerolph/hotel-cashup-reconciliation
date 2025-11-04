@@ -68,6 +68,8 @@ class HCR_Core {
         // Photo upload actions
         add_action('wp_ajax_hcr_upload_machine_photo', array($plugin_ajax, 'handle_upload_machine_photo'));
         add_action('wp_ajax_hcr_delete_machine_photo', array($plugin_ajax, 'handle_delete_machine_photo'));
+        add_action('wp_ajax_hcr_delete_attachment', array($plugin_ajax, 'handle_delete_attachment'));
+        add_action('wp_ajax_hcr_purge_receipt_photos', array($plugin_ajax, 'handle_purge_receipt_photos'));
 
         // Newbook data actions
         add_action('wp_ajax_hcr_fetch_newbook_payments', array($plugin_ajax, 'handle_fetch_newbook_payments'));

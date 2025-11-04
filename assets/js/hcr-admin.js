@@ -775,6 +775,15 @@ jQuery(document).ready(function($) {
             displayReconciliation(data.reconciliation);
         }
 
+        // Clear accumulated receipt photos for new data load
+        accumulatedReceiptPhotos = [];
+        accumulatedPublicReceiptPhotos = [];
+
+        // Load existing receipt photo attachments
+        if (data.attachments && data.attachments.length > 0) {
+            displayExistingAttachments(data.attachments);
+        }
+
         // Auto-fetch Newbook data for the loaded date
         var sessionDate = data.cash_up.session_date;
         if (sessionDate) {
@@ -1059,10 +1068,13 @@ jQuery(document).ready(function($) {
             return;
         }
 
-        // Calculate till total
-        var tillTotal = 0;
+        // Calculate till card total (excluding cash)
+        var tillCardTotal = 0;
         tillPayments.forEach(function(item) {
-            tillTotal += item.total_value;
+            // Exclude cash from card total calculation
+            if (item.payment_type.toLowerCase() !== 'cash') {
+                tillCardTotal += item.total_value;
+            }
         });
 
         // Get restaurant/bar machine total
@@ -1070,8 +1082,8 @@ jQuery(document).ready(function($) {
         var restaurantAmex = parseFloat($('#restaurant_amex, #public_restaurant_amex').val()) || 0;
         var restaurantMachineTotal = restaurantTotal;
 
-        // Calculate variance
-        var variance = restaurantMachineTotal - tillTotal;
+        // Calculate variance (card only)
+        var variance = restaurantMachineTotal - tillCardTotal;
 
         // Build tooltip content
         var content = '<table style="width: 100%; border-collapse: collapse; font-size: 13px;">';
@@ -1082,26 +1094,50 @@ jQuery(document).ready(function($) {
         content += '</tr></thead><tbody>';
 
         tillPayments.forEach(function(item) {
-            content += '<tr>';
+            var qtyDisplay = item.quantity;
+            var valueFormatted = '£' + Math.abs(item.total_value).toFixed(2);
+            var valueStyle = '';
+            var rowStyle = '';
+            var isCash = item.payment_type.toLowerCase() === 'cash';
+
+            // If negative (refund in revenue perspective), show in red with parentheses
+            if (item.total_value < 0) {
+                valueFormatted = '(£' + Math.abs(item.total_value).toFixed(2) + ')';
+                valueStyle = ' style="color: #721c24;"';
+            }
+
+            // Grey out cash row (excluded from variance)
+            if (isCash) {
+                rowStyle = ' style="color: #999; opacity: 0.6;"';
+            }
+
+            content += '<tr' + rowStyle + '>';
             content += '<td style="padding: 3px 0;">' + item.payment_type + '</td>';
-            content += '<td style="text-align: center; padding: 3px 0;">' + item.quantity + '</td>';
-            content += '<td style="text-align: right; padding: 3px 0;">£' + item.total_value.toFixed(2) + '</td>';
+            content += '<td style="text-align: center; padding: 3px 0;">' + qtyDisplay + '</td>';
+            content += '<td style="text-align: right; padding: 3px 0;"' + (isCash ? rowStyle : valueStyle) + '>' + valueFormatted + '</td>';
             content += '</tr>';
         });
 
-        // Till total row
+        // Till Card Total row (excluding cash)
+        var tillCardTotalFormatted = '£' + Math.abs(tillCardTotal).toFixed(2);
+        var tillCardTotalStyle = '';
+        if (tillCardTotal < 0) {
+            tillCardTotalFormatted = '(£' + Math.abs(tillCardTotal).toFixed(2) + ')';
+            tillCardTotalStyle = ' style="color: #721c24;"';
+        }
+
         content += '<tr style="border-top: 2px solid #666; font-weight: bold;">';
-        content += '<td colspan="2" style="padding: 5px 0;">Till Total</td>';
-        content += '<td style="text-align: right; padding: 5px 0;">£' + tillTotal.toFixed(2) + '</td>';
+        content += '<td colspan="2" style="padding: 5px 0;">Till Card Total</td>';
+        content += '<td style="text-align: right; padding: 5px 0;"' + tillCardTotalStyle + '>' + tillCardTotalFormatted + '</td>';
         content += '</tr>';
 
-        // Restaurant machine total row
+        // Restaurant/Bar PDQ row
         content += '<tr style="font-weight: bold;">';
-        content += '<td colspan="2" style="padding: 5px 0;">Restaurant/Bar Machine</td>';
+        content += '<td colspan="2" style="padding: 5px 0;">Restaurant/Bar PDQ</td>';
         content += '<td style="text-align: right; padding: 5px 0;">£' + restaurantMachineTotal.toFixed(2) + '</td>';
         content += '</tr>';
 
-        // Variance row with color coding
+        // Till Card Variance row with color coding
         var varianceColor = '';
         var varianceSign = '';
         if (Math.abs(variance) < 0.005) {
@@ -1116,7 +1152,7 @@ jQuery(document).ready(function($) {
         }
 
         content += '<tr style="border-top: 2px solid #666; font-weight: bold; color: ' + varianceColor + ';">';
-        content += '<td colspan="2" style="padding: 5px 0;">Variance</td>';
+        content += '<td colspan="2" style="padding: 5px 0;">Till Card Variance</td>';
         content += '<td style="text-align: right; padding: 5px 0;">' + varianceSign + '£' + variance.toFixed(2) + '</td>';
         content += '</tr>';
 
@@ -1160,12 +1196,19 @@ jQuery(document).ready(function($) {
             Object.keys(breakdown.reception_manual).forEach(function(paymentCategory) {
                 var transactions = breakdown.reception_manual[paymentCategory];
                 if (transactions.length > 0) {
-                    $('#hcr-reception-breakdown').append('<tr class="hcr-breakdown-subheading"><td colspan="4"><strong>Manual ' + paymentCategory + '</strong></td></tr>');
+                    // Calculate subtotal for this category
+                    var subtotal = 0;
+                    transactions.forEach(function(transaction) {
+                        subtotal += transaction.amount;
+                    });
+                    var subtotalFormatted = formatTransactionAmount(subtotal);
+
+                    $('#hcr-reception-breakdown').append('<tr class="hcr-breakdown-subheading"><td colspan="3"><strong>Manual ' + paymentCategory + '</strong></td><td style="text-align: right;"><strong>' + subtotalFormatted + '</strong></td></tr>');
                     transactions.forEach(function(transaction) {
                         var timeFormatted = formatTransactionTime(transaction.time);
                         var amountFormatted = formatTransactionAmount(transaction.amount);
                         $('#hcr-reception-breakdown').append(
-                            '<tr>' +
+                            '<tr class="hcr-selectable-row">' +
                             '<td>' + timeFormatted + '</td>' +
                             '<td>' + (transaction.payment_type || '') + '</td>' +
                             '<td>' + transaction.details + '</td>' +
@@ -1183,12 +1226,19 @@ jQuery(document).ready(function($) {
             Object.keys(breakdown.reception_gateway).forEach(function(paymentCategory) {
                 var transactions = breakdown.reception_gateway[paymentCategory];
                 if (transactions.length > 0) {
-                    $('#hcr-reception-breakdown').append('<tr class="hcr-breakdown-subheading"><td colspan="4"><strong>Gateway ' + paymentCategory + '</strong></td></tr>');
+                    // Calculate subtotal for this category
+                    var subtotal = 0;
+                    transactions.forEach(function(transaction) {
+                        subtotal += transaction.amount;
+                    });
+                    var subtotalFormatted = formatTransactionAmount(subtotal);
+
+                    $('#hcr-reception-breakdown').append('<tr class="hcr-breakdown-subheading"><td colspan="3"><strong>Gateway ' + paymentCategory + '</strong></td><td style="text-align: right;"><strong>' + subtotalFormatted + '</strong></td></tr>');
                     transactions.forEach(function(transaction) {
                         var timeFormatted = formatTransactionTime(transaction.time);
                         var amountFormatted = formatTransactionAmount(transaction.amount);
                         $('#hcr-reception-breakdown').append(
-                            '<tr>' +
+                            '<tr class="hcr-selectable-row">' +
                             '<td>' + timeFormatted + '</td>' +
                             '<td>' + (transaction.payment_type || '') + '</td>' +
                             '<td>' + transaction.details + '</td>' +
@@ -1209,12 +1259,19 @@ jQuery(document).ready(function($) {
             Object.keys(breakdown.restaurant_bar).forEach(function(paymentCategory) {
                 var transactions = breakdown.restaurant_bar[paymentCategory];
                 if (transactions.length > 0) {
-                    $('#hcr-restaurant-breakdown').append('<tr class="hcr-breakdown-subheading"><td colspan="4"><strong>' + paymentCategory + '</strong></td></tr>');
+                    // Calculate subtotal for this category
+                    var subtotal = 0;
+                    transactions.forEach(function(transaction) {
+                        subtotal += transaction.amount;
+                    });
+                    var subtotalFormatted = formatTransactionAmount(subtotal);
+
+                    $('#hcr-restaurant-breakdown').append('<tr class="hcr-breakdown-subheading"><td colspan="3"><strong>' + paymentCategory + '</strong></td><td style="text-align: right;"><strong>' + subtotalFormatted + '</strong></td></tr>');
                     transactions.forEach(function(transaction) {
                         var timeFormatted = formatTransactionTime(transaction.time);
                         var amountFormatted = formatTransactionAmount(transaction.amount);
                         $('#hcr-restaurant-breakdown').append(
-                            '<tr>' +
+                            '<tr class="hcr-selectable-row">' +
                             '<td>' + timeFormatted + '</td>' +
                             '<td>' + (transaction.payment_type || '') + '</td>' +
                             '<td>' + transaction.details + '</td>' +
@@ -1239,13 +1296,17 @@ jQuery(document).ready(function($) {
         return parts.length > 1 ? parts[1] : datetime;
     }
 
-    // Format transaction amount
+    // Format transaction amount (accounting style)
+    // In Newbook: payments are negative (money in), refunds are positive (money out)
+    // Display: show refunds in red with parentheses
     function formatTransactionAmount(amount) {
         var absAmount = Math.abs(amount);
         var formatted = '£' + absAmount.toFixed(2);
-        if (amount < 0) {
+        if (amount > 0) {
+            // Refund (positive) - show in red with parentheses
             return '<span style="color: #721c24;">(' + formatted + ')</span>';
         }
+        // Payment (negative) - show normally
         return formatted;
     }
 
@@ -1264,6 +1325,14 @@ jQuery(document).ready(function($) {
             $content.slideDown(200);
             $arrow.removeClass('dashicons-arrow-right').addClass('dashicons-arrow-down');
         }
+    });
+
+    // =======================
+    // Selectable Transaction Rows
+    // =======================
+
+    $(document).on('click', '.hcr-selectable-row', function() {
+        $(this).toggleClass('hcr-row-selected');
     });
 
     // =======================
@@ -1401,18 +1470,30 @@ jQuery(document).ready(function($) {
             return;
         }
 
-        var formData = {
-            action: 'hcr_save_cash_up',
-            nonce: nonce,
-            session_date: $('#session_date, #public_session_date').val(),
-            status: status,
-            notes: $('#cash_up_notes, #public_cash_up_notes').val(),
-            machine_photo_id: $('#hcr-machine-photo-id, #hcr-public-machine-photo-id').val() || '',
-            denominations: denominations,
-            card_machines: cardMachines
-        };
+        // Use FormData to handle file uploads
+        var formData = new FormData();
+        formData.append('action', 'hcr_save_cash_up');
+        formData.append('nonce', nonce);
+        formData.append('session_date', $('#session_date, #public_session_date').val());
+        formData.append('status', status);
+        formData.append('notes', $('#cash_up_notes, #public_cash_up_notes').val());
+        formData.append('machine_photo_id', $('#hcr-machine-photo-id, #hcr-public-machine-photo-id').val() || '');
 
-        console.log('HCR: Saving with formData:', formData);
+        // Append arrays as JSON strings
+        formData.append('denominations', JSON.stringify(denominations));
+        formData.append('card_machines', JSON.stringify(cardMachines));
+
+        // Append receipt photos from accumulated arrays
+        var isPublicContext = typeof hcrPublic !== 'undefined' && hcrPublic.ajaxUrl;
+        var photosToUpload = isPublicContext ? accumulatedPublicReceiptPhotos : accumulatedReceiptPhotos;
+
+        if (photosToUpload && photosToUpload.length > 0) {
+            for (var i = 0; i < photosToUpload.length; i++) {
+                formData.append('receipt_photos[]', photosToUpload[i]);
+            }
+        }
+
+        console.log('HCR: Saving cash up with files');
 
         // Disable buttons
         $form.find('button[type="submit"]').prop('disabled', true);
@@ -1421,6 +1502,8 @@ jQuery(document).ready(function($) {
             url: ajaxUrl,
             type: 'POST',
             data: formData,
+            processData: false,
+            contentType: false,
             success: function(response) {
                 console.log('HCR: Save response:', response);
                 if (response.success) {
@@ -1430,6 +1513,22 @@ jQuery(document).ready(function($) {
 
                     // Clear dirty flag on successful save
                     clearFormDirty();
+
+                    // Clear accumulated receipt photos arrays for new uploads
+                    if (isPublicContext) {
+                        accumulatedPublicReceiptPhotos = [];
+                    } else {
+                        accumulatedReceiptPhotos = [];
+                    }
+
+                    // Display all attachments (including newly uploaded ones)
+                    if (response.data.attachments && response.data.attachments.length > 0) {
+                        displayExistingAttachments(response.data.attachments);
+                    } else {
+                        // If no attachments, clear the preview
+                        var previewContainer = isPublicContext ? $('#hcr-public-receipt-photos-preview') : $('#hcr-receipt-photos-preview');
+                        previewContainer.empty();
+                    }
 
                     if (status === 'final') {
                         disableForm();
@@ -1665,6 +1764,209 @@ jQuery(document).ready(function($) {
     // =======================
 
     window.hcrLoadCashUpData = loadCashUpData;
+    // =======================
+    // Receipt Photos Preview and Popup
+    // =======================
+
+    // Arrays to accumulate files across multiple selections
+    var accumulatedReceiptPhotos = [];
+    var accumulatedPublicReceiptPhotos = [];
+
+    // Button click handlers to trigger file input
+    $(document).on('click', '#hcr-upload-receipt-photos-btn', function() {
+        $('#hcr-receipt-photos-input').trigger('click');
+    });
+
+    $(document).on('click', '#hcr-public-upload-receipt-photos-btn', function() {
+        $('#hcr-public-receipt-photos-input').trigger('click');
+    });
+
+    // Handle file input change to show previews
+    $(document).on('change', '#hcr-receipt-photos-input, #hcr-public-receipt-photos-input', function() {
+        var files = this.files;
+        var previewContainer = $(this).siblings('.hcr-photos-grid');
+        var isPublic = this.id === 'hcr-public-receipt-photos-input';
+        var targetArray = isPublic ? accumulatedPublicReceiptPhotos : accumulatedReceiptPhotos;
+
+        if (files.length === 0) {
+            return;
+        }
+
+        // Add new files to accumulated array
+        for (var i = 0; i < files.length; i++) {
+            targetArray.push(files[i]);
+        }
+
+        // Display all accumulated files
+        for (var i = 0; i < files.length; i++) {
+            var file = files[i];
+            var reader = new FileReader();
+            var fileIndex = targetArray.length - files.length + i;
+
+            (function(f, idx) {
+                reader.onload = function(e) {
+                    var thumbnail = '';
+                    var removeBtn = '<span class="hcr-photo-remove" data-index="' + idx + '" data-public="' + isPublic + '" title="Remove">&times;</span>';
+
+                    if (f.type.indexOf('image/') === 0) {
+                        // Image file - show thumbnail
+                        thumbnail = '<div class="hcr-photo-thumbnail hcr-new-photo" data-index="' + idx + '">' +
+                                   removeBtn +
+                                   '<img src="' + e.target.result + '" alt="' + f.name + '">' +
+                                   '<div class="hcr-photo-name">' + f.name + '</div>' +
+                                   '</div>';
+                    } else if (f.type === 'application/pdf') {
+                        // PDF file - show PDF icon
+                        thumbnail = '<div class="hcr-photo-thumbnail hcr-pdf-thumbnail hcr-new-photo" data-index="' + idx + '">' +
+                                   removeBtn +
+                                   '<span class="dashicons dashicons-pdf"></span>' +
+                                   '<div class="hcr-photo-name">' + f.name + '</div>' +
+                                   '</div>';
+                    }
+                    previewContainer.append(thumbnail);
+                };
+                reader.readAsDataURL(f);
+            })(file, fileIndex);
+        }
+
+        // Clear the input so the same file can be selected again
+        this.value = '';
+    });
+
+    // Handle remove photo
+    $(document).on('click', '.hcr-photo-remove', function(e) {
+        e.stopPropagation();
+
+        // Check if this is an existing photo (already saved to database) or new photo
+        if ($(this).hasClass('hcr-remove-existing')) {
+            // Remove existing photo from database
+            var attachmentId = parseInt($(this).data('attachment-id'));
+            var $thumbnail = $(this).closest('.hcr-photo-thumbnail');
+
+            if (!confirm('Are you sure you want to delete this photo? This cannot be undone.')) {
+                return;
+            }
+
+            // Determine which nonce to use
+            var isPublicContext = typeof hcrPublic !== 'undefined' && hcrPublic.ajaxUrl;
+            var ajaxUrl = isPublicContext ? hcrPublic.ajaxUrl : hcrAdmin.ajaxUrl;
+            var nonce = isPublicContext ? hcrPublic.nonce : hcrAdmin.nonce;
+
+            $.ajax({
+                url: ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'hcr_delete_attachment',
+                    nonce: nonce,
+                    attachment_id: attachmentId
+                },
+                success: function(response) {
+                    if (response.success) {
+                        $thumbnail.fadeOut(300, function() {
+                            $(this).remove();
+                        });
+                        showMessage(response.data.message, 'success');
+                    } else {
+                        showMessage(response.data.message, 'error');
+                    }
+                },
+                error: function() {
+                    showMessage('An error occurred deleting the photo.', 'error');
+                }
+            });
+        } else {
+            // Remove new photo from accumulated array
+            var index = parseInt($(this).data('index'));
+            var isPublic = $(this).data('public');
+            var targetArray = isPublic ? accumulatedPublicReceiptPhotos : accumulatedReceiptPhotos;
+
+            // Remove from array
+            targetArray.splice(index, 1);
+
+            // Remove thumbnail and update remaining indices
+            var $container = $(this).closest('.hcr-photos-grid');
+            $container.find('.hcr-new-photo').each(function(i) {
+                var oldIndex = parseInt($(this).data('index'));
+                if (oldIndex === index) {
+                    $(this).remove();
+                } else if (oldIndex > index) {
+                    // Update indices for photos after the removed one
+                    $(this).data('index', oldIndex - 1);
+                    $(this).attr('data-index', oldIndex - 1);
+                    $(this).find('.hcr-photo-remove').data('index', oldIndex - 1);
+                    $(this).find('.hcr-photo-remove').attr('data-index', oldIndex - 1);
+                }
+            });
+        }
+    });
+
+    // Display existing attachments when loading cash up
+    function displayExistingAttachments(attachments) {
+        if (!attachments || attachments.length === 0) {
+            return;
+        }
+
+        var previewContainer = $('#hcr-receipt-photos-preview, #hcr-public-receipt-photos-preview');
+        previewContainer.empty();
+
+        attachments.forEach(function(attachment) {
+            var removeBtn = '<span class="hcr-photo-remove hcr-remove-existing" data-attachment-id="' + attachment.id + '" title="Remove">&times;</span>';
+            var thumbnail = '';
+            if (attachment.file_type.indexOf('image/') === 0) {
+                // Image file
+                thumbnail = '<div class="hcr-photo-thumbnail hcr-existing-photo" data-url="' + attachment.file_path + '" data-attachment-id="' + attachment.id + '">' +
+                           removeBtn +
+                           '<img src="' + attachment.file_path + '" alt="' + attachment.file_name + '">' +
+                           '<div class="hcr-photo-name">' + attachment.file_name + '</div>' +
+                           '</div>';
+            } else if (attachment.file_type === 'application/pdf') {
+                // PDF file
+                thumbnail = '<div class="hcr-photo-thumbnail hcr-pdf-thumbnail hcr-existing-photo" data-url="' + attachment.file_path + '" data-attachment-id="' + attachment.id + '">' +
+                           removeBtn +
+                           '<span class="dashicons dashicons-pdf"></span>' +
+                           '<div class="hcr-photo-name">' + attachment.file_name + '</div>' +
+                           '</div>';
+            }
+            previewContainer.append(thumbnail);
+        });
+    }
+
+    // Click thumbnail to open popup preview
+    $(document).on('click', '.hcr-existing-photo', function() {
+        var imageUrl = $(this).data('url');
+        var fileName = $(this).find('.hcr-photo-name').text();
+
+        // Create popup overlay
+        var popup = '<div id="hcr-image-popup-overlay">' +
+                   '<div id="hcr-image-popup-content">' +
+                   '<span id="hcr-image-popup-close">&times;</span>' +
+                   '<h3>' + fileName + '</h3>' +
+                   '<img src="' + imageUrl + '" alt="' + fileName + '">' +
+                   '</div>' +
+                   '</div>';
+
+        $('body').append(popup);
+        $('#hcr-image-popup-overlay').fadeIn(200);
+    });
+
+    // Close popup
+    $(document).on('click', '#hcr-image-popup-close, #hcr-image-popup-overlay', function(e) {
+        if (e.target.id === 'hcr-image-popup-overlay' || e.target.id === 'hcr-image-popup-close') {
+            $('#hcr-image-popup-overlay').fadeOut(200, function() {
+                $(this).remove();
+            });
+        }
+    });
+
+    // Close popup on Escape key
+    $(document).on('keydown', function(e) {
+        if (e.key === 'Escape' && $('#hcr-image-popup-overlay').length) {
+            $('#hcr-image-popup-overlay').fadeOut(200, function() {
+                $(this).remove();
+            });
+        }
+    });
+
     window.hcrClearForm = clearForm;
     window.hcrShowForm = showForm;
     window.hcrAutoFetchNewbookData = autoFetchNewbookData;
@@ -1672,4 +1974,5 @@ jQuery(document).ready(function($) {
     window.hcrClearFormDirty = clearFormDirty;
     window.hcrDisplayTillPayments = displayTillPayments;
     window.hcrUpdateTotalFloat = updateTotalFloat;
+    window.hcrDisplayExistingAttachments = displayExistingAttachments;
 });

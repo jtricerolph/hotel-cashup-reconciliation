@@ -361,6 +361,12 @@ class HCR_Newbook_API {
         $matched_count = 0;
 
         foreach ($transaction_data['data'] as $transaction) {
+            // Only process payments and refunds
+            $item_type = $transaction['item_type'] ?? '';
+            if ($item_type !== 'payments_raised' && $item_type !== 'refunds_raised') {
+                continue;
+            }
+
             // Only process manual transactions
             $method = $transaction['payment_transaction_method'] ?? '';
             if ($method !== 'manual') {
@@ -378,7 +384,11 @@ class HCR_Newbook_API {
                 $matched_count++;
                 $ticket_number = $matches[1];
                 $payment_type = trim($matches[2]);
-                $amount = abs(floatval($transaction['item_amount'] ?? 0));
+
+                // Convert from Newbook accounting (payments negative, refunds positive)
+                // to revenue perspective (payments positive, refunds negative) for variance calculation
+                $raw_amount = floatval($transaction['item_amount'] ?? 0);
+                $amount = -$raw_amount;
 
                 // Skip if amount is 0
                 if ($amount == 0) {
@@ -394,8 +404,16 @@ class HCR_Newbook_API {
                     );
                 }
 
-                // Increment count and add to total
-                $till_payments[$payment_type]['quantity']++;
+                // In revenue perspective: payments (positive) increment, refunds (negative) decrement
+                if ($amount > 0) {
+                    // Payment
+                    $till_payments[$payment_type]['quantity']++;
+                } else {
+                    // Refund
+                    $till_payments[$payment_type]['quantity']--;
+                }
+
+                // Add to total
                 $till_payments[$payment_type]['total_value'] += $amount;
             }
         }
@@ -450,7 +468,7 @@ class HCR_Newbook_API {
         foreach ($transaction_data['data'] as $transaction) {
             // Only process payments and refunds
             $item_type = $transaction['item_type'] ?? '';
-            if ($item_type !== 'payments_raised' && $item_type !== 'refunds') {
+            if ($item_type !== 'payments_raised' && $item_type !== 'refunds_raised') {
                 continue;
             }
 

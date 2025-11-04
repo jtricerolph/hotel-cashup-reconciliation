@@ -309,6 +309,17 @@ $preselected_date = isset($atts['date']) ? $atts['date'] : date('Y-m-d');
         <h3>Notes</h3>
         <textarea id="public_cash_up_notes" name="notes" rows="3" placeholder="Any notes or comments..."></textarea>
 
+        <!-- Receipt Photos -->
+        <h3>Receipt Photos</h3>
+        <p class="hcr-help-text">Upload photos of receipts or transactions causing variances for accounts to investigate later. Multiple files allowed (max 5MB each, JPG/PNG/PDF).</p>
+        <div id="hcr-public-receipt-photos-section">
+            <input type="file" id="hcr-public-receipt-photos-input" name="receipt_photos[]" multiple accept="image/*,application/pdf" capture="environment" style="display: none;">
+            <button type="button" id="hcr-public-upload-receipt-photos-btn" class="hcr-button-secondary">
+                <span class="dashicons dashicons-camera"></span> Upload Receipt Photos
+            </button>
+            <div id="hcr-public-receipt-photos-preview" class="hcr-photos-grid" style="margin-top: 10px;"></div>
+        </div>
+
         <!-- Save Status Indicator -->
         <div id="hcr-public-save-status" class="hcr-save-status-box" style="display: none;"></div>
 

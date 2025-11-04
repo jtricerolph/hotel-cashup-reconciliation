@@ -352,6 +352,17 @@ $auto_load = isset($_GET['date']) ? 'true' : 'false';
             <textarea id="cash_up_notes" name="notes" rows="4" class="large-text"></textarea>
         </p>
 
+        <!-- Receipt Photos Section -->
+        <h2>Receipt Photos</h2>
+        <p class="description">Upload photos of receipts or transactions causing variances for accounts to investigate later. Multiple files allowed (max 5MB each, JPG/PNG/PDF).</p>
+        <div id="hcr-receipt-photos-section">
+            <input type="file" id="hcr-receipt-photos-input" name="receipt_photos[]" multiple accept="image/*,application/pdf" capture="environment" style="display: none;">
+            <button type="button" id="hcr-upload-receipt-photos-btn" class="button button-secondary">
+                <span class="dashicons dashicons-camera" style="margin-top: 3px;"></span> Upload Receipt Photos
+            </button>
+            <div id="hcr-receipt-photos-preview" class="hcr-photos-grid" style="margin-top: 10px;"></div>
+        </div>
+
         <!-- Save Status Indicator -->
         <div id="hcr-save-status" class="hcr-save-status-box" style="display: none;"></div>
 

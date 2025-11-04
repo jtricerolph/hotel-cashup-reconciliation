@@ -175,6 +175,23 @@ class HCR_Activator {
             FOREIGN KEY (float_count_id) REFERENCES $float_counts_table(id) ON DELETE CASCADE
         ) $charset_collate;";
 
+        // Table 11: Cash Count Attachments (receipt photos)
+        $attachments_table = $wpdb->prefix . 'hcr_cash_count_attachments';
+        $sql_attachments = "CREATE TABLE IF NOT EXISTS $attachments_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            cash_up_id bigint(20) NOT NULL,
+            file_name varchar(255) NOT NULL,
+            file_path varchar(500) NOT NULL,
+            file_type varchar(50) NOT NULL,
+            file_size bigint(20) NOT NULL,
+            uploaded_by bigint(20) NOT NULL,
+            uploaded_at datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY cash_up_id (cash_up_id),
+            KEY uploaded_by (uploaded_by),
+            FOREIGN KEY (cash_up_id) REFERENCES $cash_ups_table(id) ON DELETE CASCADE
+        ) $charset_collate;";
+
         // Execute table creation
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql_cash_ups);
@@ -187,6 +204,7 @@ class HCR_Activator {
         dbDelta($sql_float_counts);
         dbDelta($sql_float_denominations);
         dbDelta($sql_float_receipts);
+        dbDelta($sql_attachments);
 
         // Set default options
         add_option('hcr_newbook_api_username', '');
@@ -232,6 +250,9 @@ class HCR_Activator {
 
         // Run database migrations for version 1.6.9
         self::migrate_to_1_6_9();
+
+        // Run database migrations for version 2.1.4
+        self::migrate_to_2_1_4();
 
         error_log('HCR: Plugin activated and database tables created');
     }
@@ -279,6 +300,41 @@ class HCR_Activator {
             // Add machine_photo_id column after notes
             $wpdb->query("ALTER TABLE $cash_ups_table ADD COLUMN machine_photo_id bigint(20) DEFAULT NULL AFTER notes");
             error_log('HCR: Added machine_photo_id column to hcr_cash_ups table');
+        }
+    }
+
+    /**
+     * Migrate database to version 2.1.4
+     * Creates hcr_cash_count_attachments table for multiple receipt photos
+     */
+    private static function migrate_to_2_1_4() {
+        global $wpdb;
+        $charset_collate = $wpdb->get_charset_collate();
+
+        // Check if attachments table exists
+        $attachments_table = $wpdb->prefix . 'hcr_cash_count_attachments';
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$attachments_table'");
+
+        if (!$table_exists) {
+            $cash_ups_table = $wpdb->prefix . 'hcr_cash_ups';
+            $sql_attachments = "CREATE TABLE $attachments_table (
+                id bigint(20) NOT NULL AUTO_INCREMENT,
+                cash_up_id bigint(20) NOT NULL,
+                file_name varchar(255) NOT NULL,
+                file_path varchar(500) NOT NULL,
+                file_type varchar(50) NOT NULL,
+                file_size bigint(20) NOT NULL,
+                uploaded_by bigint(20) NOT NULL,
+                uploaded_at datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY cash_up_id (cash_up_id),
+                KEY uploaded_by (uploaded_by),
+                FOREIGN KEY (cash_up_id) REFERENCES $cash_ups_table(id) ON DELETE CASCADE
+            ) $charset_collate;";
+
+            require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+            dbDelta($sql_attachments);
+            error_log('HCR: Created hcr_cash_count_attachments table');
         }
     }
 }
