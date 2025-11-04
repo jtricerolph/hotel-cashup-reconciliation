@@ -166,10 +166,15 @@ $denom_labels = array(
 
 <!-- View Count Modal -->
 <div id="view-count-modal" style="display: none; position: fixed; z-index: 100000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
-    <div style="background-color: #fff; margin: 50px auto; padding: 20px; width: 90%; max-width: 900px; max-height: 80%; overflow-y: auto; border-radius: 5px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <div id="modal-inner" style="background-color: #fff; margin: 50px auto; padding: 20px; width: 90%; max-width: 900px; max-height: 80%; overflow-y: auto; border-radius: 5px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;" class="no-print">
             <h2>Count Details</h2>
-            <button type="button" class="button" id="close-modal-btn">&times; Close</button>
+            <div>
+                <button type="button" class="button button-primary" id="print-modal-btn" style="margin-right: 10px;">
+                    <span class="dashicons dashicons-printer" style="vertical-align: middle; margin-right: 5px;"></span>Print
+                </button>
+                <button type="button" class="button" id="close-modal-btn">&times; Close</button>
+            </div>
         </div>
         <div id="modal-content">
             <!-- Content will be loaded here -->
@@ -208,6 +213,77 @@ $denom_labels = array(
 }
 .topup-negative {
     color: orange;
+}
+
+/* Print styles */
+@media print {
+    /* Hide everything except the modal content */
+    body * {
+        visibility: hidden;
+    }
+
+    #view-count-modal,
+    #view-count-modal * {
+        visibility: visible;
+    }
+
+    /* Hide modal overlay background */
+    #view-count-modal {
+        position: static;
+        background-color: transparent !important;
+    }
+
+    /* Make modal content full-width */
+    #modal-inner {
+        margin: 0 !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        max-height: none !important;
+        overflow: visible !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+    }
+
+    /* Hide buttons and non-printable elements */
+    .no-print {
+        display: none !important;
+    }
+
+    /* Ensure tables print properly */
+    table {
+        page-break-inside: auto;
+    }
+
+    tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+
+    /* Ensure proper spacing for print */
+    #modal-content {
+        padding: 20px;
+    }
+
+    /* Make sure colors print */
+    .variance-positive,
+    .topup-positive {
+        color: green !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .variance-negative {
+        color: red !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .topup-negative {
+        color: orange !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 }
 </style>
 
@@ -437,21 +513,41 @@ jQuery(document).ready(function($) {
                 // Denominations
                 html += '<h3>Change Tin Breakdown</h3>';
                 html += '<table class="widefat">';
-                html += '<thead><tr><th>Denomination</th><th>Qty</th><th>Total</th></tr></thead><tbody>';
+                html += '<thead><tr><th>Denomination</th><th>Qty</th><th>Total</th><th>Target</th><th>Topup/Exchange at Bank</th></tr></thead><tbody>';
 
                 if (count.denominations && count.denominations.length > 0) {
                     count.denominations.forEach(function(denom) {
                         var denomValue = parseFloat(denom.denomination_value);
                         var denomLabel = denomValue >= 1 ? '£' + denomValue.toFixed(0) : (denomValue * 100).toFixed(0) + 'p';
+                        var total = parseFloat(denom.total_amount);
+                        var target = parseFloat(denom.target || 0);
+                        var difference = total - target;
+
+                        // Format topup cell
+                        var topupText = '';
+                        var topupClass = '';
+                        if (Math.abs(difference) < 0.01) {
+                            topupText = 'Balanced';
+                            topupClass = 'color: gray;';
+                        } else if (difference < 0) {
+                            topupText = '+£' + Math.abs(difference).toFixed(2) + ' from bank';
+                            topupClass = 'color: green;';
+                        } else {
+                            topupText = '-£' + difference.toFixed(2) + ' to bank';
+                            topupClass = 'color: orange;';
+                        }
+
                         html += '<tr>' +
                             '<td>' + denomLabel + '</td>' +
                             '<td>' + denom.quantity + '</td>' +
-                            '<td>£' + parseFloat(denom.total_amount).toFixed(2) + '</td>' +
+                            '<td>£' + total.toFixed(2) + '</td>' +
+                            '<td>£' + target.toFixed(2) + '</td>' +
+                            '<td style="font-weight: bold; ' + topupClass + '">' + topupText + '</td>' +
                             '</tr>';
                     });
                 }
 
-                html += '<tr style="background: #f9f9f9;"><th colspan="2">Total Counted:</th><th>£' + parseFloat(count.total_counted).toFixed(2) + '</th></tr>';
+                html += '<tr style="background: #f9f9f9;"><th colspan="2">Total Counted:</th><th>£' + parseFloat(count.total_counted).toFixed(2) + '</th><th>£' + parseFloat(count.target_amount).toFixed(2) + '</th><th></th></tr>';
                 html += '</tbody></table>';
 
                 // Summary
@@ -547,6 +643,11 @@ jQuery(document).ready(function($) {
             alert('Server error. Please try again.');
             $button.text('Preload Count').prop('disabled', false);
         });
+    });
+
+    // Print modal
+    $('#print-modal-btn').on('click', function() {
+        window.print();
     });
 
     // Close modal

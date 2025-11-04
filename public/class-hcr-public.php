@@ -92,4 +92,62 @@ class HCR_Public {
         include HCR_PLUGIN_DIR . 'public/views/cash-up-form.php';
         return ob_get_clean();
     }
+
+    /**
+     * Render petty cash count form shortcode
+     */
+    public function render_petty_cash_form($atts) {
+        // Check user permissions
+        if (!is_user_logged_in()) {
+            return '<p class="hcr-error">You must be logged in to access this form.</p>';
+        }
+
+        // Parse shortcode attributes
+        $atts = shortcode_atts(array(), $atts);
+
+        // Use output buffering to capture template
+        ob_start();
+        include HCR_PLUGIN_DIR . 'public/views/petty-cash-form.php';
+        return ob_get_clean();
+    }
+
+    /**
+     * Render change tin count form shortcode
+     */
+    public function render_change_tin_form($atts) {
+        // Check user permissions
+        if (!is_user_logged_in()) {
+            return '<p class="hcr-error">You must be logged in to access this form.</p>';
+        }
+
+        // Parse shortcode attributes
+        $atts = shortcode_atts(array(), $atts);
+
+        // Use output buffering to capture template
+        ob_start();
+        include HCR_PLUGIN_DIR . 'public/views/change-tin-form.php';
+        return ob_get_clean();
+    }
+
+    /**
+     * Render occupancy statistics table shortcode
+     */
+    public function render_occupancy_table($atts) {
+        // Check user permissions
+        if (!is_user_logged_in()) {
+            return '<p class="hcr-error">You must be logged in to access this report.</p>';
+        }
+
+        // Parse shortcode attributes
+        $atts = shortcode_atts(array(
+            'start_date' => date('Y-m-d', strtotime('monday this week')),
+            'days' => 7,
+            'autoload' => 'false'
+        ), $atts);
+
+        // Use output buffering to capture template
+        ob_start();
+        include HCR_PLUGIN_DIR . 'public/views/occupancy-table.php';
+        return ob_get_clean();
+    }
 }

@@ -52,6 +52,9 @@ class HCR_Core {
 
         // Register shortcodes
         add_shortcode('hcr_cash_up_form', array($plugin_public, 'render_cash_up_form'));
+        add_shortcode('hcr_petty_cash_form', array($plugin_public, 'render_petty_cash_form'));
+        add_shortcode('hcr_change_tin_form', array($plugin_public, 'render_change_tin_form'));
+        add_shortcode('hcr_occupancy_table', array($plugin_public, 'render_occupancy_table'));
     }
 
     /**
@@ -79,6 +82,7 @@ class HCR_Core {
         add_action('wp_ajax_hcr_generate_multi_day_report', array($plugin_ajax, 'handle_generate_multi_day_report'));
         add_action('wp_ajax_hcr_fetch_debtors_creditors_data', array($plugin_ajax, 'handle_fetch_debtors_creditors_data'));
         add_action('wp_ajax_hcr_export_to_excel', array($plugin_ajax, 'handle_export_to_excel'));
+        add_action('wp_ajax_hcr_occupancy_report', array($plugin_ajax, 'handle_occupancy_report'));
 
         // Settings actions
         add_action('wp_ajax_hcr_test_connection', array($plugin_ajax, 'handle_test_connection'));

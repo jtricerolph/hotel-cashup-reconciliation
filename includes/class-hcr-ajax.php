@@ -1618,6 +1618,32 @@ class HCR_Ajax {
             $count_id
         ), ARRAY_A);
 
+        // Get change tin breakdown from settings to include target amounts
+        $breakdown = get_option('hcr_change_tin_breakdown', '');
+        if (is_string($breakdown) && !empty($breakdown)) {
+            $breakdown = json_decode($breakdown, true);
+        }
+        if (empty($breakdown) || !is_array($breakdown)) {
+            $breakdown = array(
+                '50.00' => 0,
+                '20.00' => 0,
+                '10.00' => 0,
+                '5.00' => 0,
+                '2.00' => 20.00,
+                '1.00' => 20.00,
+                '0.50' => 10.00,
+                '0.20' => 10.00,
+                '0.10' => 5.00,
+                '0.05' => 5.00
+            );
+        }
+
+        // Add target amount to each denomination
+        foreach ($denominations as &$denom) {
+            $denom_key = number_format(floatval($denom['denomination_value']), 2, '.', '');
+            $denom['target'] = isset($breakdown[$denom_key]) ? floatval($breakdown[$denom_key]) : 0.00;
+        }
+
         // Get created by user name
         $user = get_userdata($count['created_by']);
         $count['created_by_name'] = $user ? $user->display_name : 'Unknown';
@@ -1945,6 +1971,432 @@ class HCR_Ajax {
             'purge_date' => $purge_date,
             'deleted_count' => $deleted_count,
             'failed_count' => $failed_count
+        ));
+    }
+
+    /**
+     * Handle occupancy report (for public occupancy table shortcode)
+     * Returns data in format specifically for occupancy statistics display
+     */
+    public function handle_occupancy_report() {
+        // Verify nonce - accept both admin and public nonces
+        $nonce_valid = false;
+        if (isset($_POST['nonce'])) {
+            $nonce_valid = wp_verify_nonce($_POST['nonce'], 'hcr_admin_nonce') ||
+                          wp_verify_nonce($_POST['nonce'], 'hcr_public_nonce');
+        }
+
+        if (!$nonce_valid) {
+            wp_send_json_error(array('message' => 'Security check failed.'));
+            return;
+        }
+
+        if (!is_user_logged_in() || !current_user_can('edit_posts')) {
+            wp_send_json_error(array('message' => 'Permission denied.'));
+            return;
+        }
+
+        $start_date = sanitize_text_field($_POST['start_date']);
+        $num_days = intval($_POST['num_days']);
+
+        if ($num_days < 1 || $num_days > 90) {
+            wp_send_json_error(array('message' => 'Number of days must be between 1 and 90.'));
+            return;
+        }
+
+        // Generate array of dates
+        $dates = array();
+        for ($i = 0; $i < $num_days; $i++) {
+            $dates[] = date('Y-m-d', strtotime($start_date . ' + ' . $i . ' days'));
+        }
+        $end_date = $dates[count($dates) - 1];
+
+        // Initialize Newbook API
+        $api = new HCR_Newbook_API();
+
+        // Fetch occupancy data
+        $occupancy_data = $api->fetch_occupancy($start_date, $end_date);
+        if ($occupancy_data === false) {
+            $occupancy_data = array();
+        }
+
+        // Fetch bookings data for statistics
+        $bookings_data = $api->fetch_bookings_list($start_date, $end_date);
+        if ($bookings_data === false) {
+            $bookings_data = array();
+        }
+
+        // Fetch earned revenue for accommodation
+        $earned_revenue = $api->fetch_earned_revenue($start_date, $end_date, 'day');
+        if ($earned_revenue === false) {
+            $earned_revenue = array();
+        }
+
+        // Fetch GL accounts to identify accommodation revenue
+        $gl_accounts = $api->fetch_gl_account_list();
+        if ($gl_accounts === false) {
+            $gl_accounts = array();
+        }
+
+        // Fetch sites list for actual room inventory (excluding overflow)
+        $sites_data = $api->fetch_sites_list();
+        if ($sites_data === false) {
+            $sites_data = array();
+        }
+
+        // Create mapping of GL account code to GL group ID (like backend does)
+        $account_to_group_map = array();
+        if (!empty($gl_accounts)) {
+            foreach ($gl_accounts as $account) {
+                if (isset($account['gl_account_code']) && isset($account['gl_group_id'])) {
+                    $account_to_group_map[$account['gl_account_code']] = $account['gl_group_id'];
+                }
+            }
+        }
+
+        // Aggregate earned revenue by GL group and period (like backend does)
+        $aggregated_revenue = array();
+        if (!empty($earned_revenue)) {
+            foreach ($earned_revenue as $item) {
+                $period = $item['period'] ?? '';
+                $account_code = $item['gl_account_code'] ?? '';
+
+                // Find the GL group ID for this account
+                $group_id = isset($account_to_group_map[$account_code]) ? $account_to_group_map[$account_code] : null;
+
+                if (!empty($period) && !empty($group_id)) {
+                    $key = $period . '_' . $group_id;
+
+                    if (!isset($aggregated_revenue[$key])) {
+                        $aggregated_revenue[$key] = array(
+                            'period' => $period,
+                            'gl_group_id' => $group_id,
+                            'earned_revenue_ex' => 0,
+                            'earned_revenue_tax' => 0,
+                            'earned_revenue' => 0
+                        );
+                    }
+
+                    // Aggregate the amounts
+                    $aggregated_revenue[$key]['earned_revenue_ex'] += floatval($item['earned_revenue_ex'] ?? 0);
+                    $aggregated_revenue[$key]['earned_revenue_tax'] += floatval($item['earned_revenue_tax'] ?? 0);
+                    $aggregated_revenue[$key]['earned_revenue'] += floatval($item['earned_revenue'] ?? 0);
+                }
+            }
+        }
+
+        // Convert aggregated revenue back to array for JSON response
+        $earned_revenue = array_values($aggregated_revenue);
+
+        // Initialize room category names from occupancy data
+        $room_category_names = array();
+        if (!empty($occupancy_data)) {
+            foreach ($occupancy_data as $item) {
+                $category_id = $item['category_id'] ?? 'unknown';
+                $room_category_names[$category_id] = $item['category_name'] ?? 'Unknown';
+            }
+        }
+
+        // Process bookings data to calculate occupancy and daily statistics
+        $occupancy_by_date = array();
+        $daily_stats = array();
+        $max_rooms_by_category = array();  // Track maximum concurrent bookings per category
+        $overflow_bookings_excluded = 0;
+        $total_bookings_processed = 0;
+
+        if (!empty($bookings_data)) {
+            foreach ($bookings_data as $booking) {
+                // Use correct field names from Newbook API
+                $arrival_date = isset($booking['booking_arrival']) ? substr($booking['booking_arrival'], 0, 10) : '';
+                $departure_date = isset($booking['booking_departure']) ? substr($booking['booking_departure'], 0, 10) : '';
+                $category_name = $booking['category_name'] ?? '';
+
+                if (empty($arrival_date) || empty($departure_date)) continue;
+
+                // Exclude overflow rooms from occupancy calculations (like backend does)
+                if (stripos($category_name, 'overflow') !== false) {
+                    $overflow_bookings_excluded++;
+                    continue;
+                }
+
+                $total_bookings_processed++;
+
+                // Calculate staying dates for this booking
+                $current_date = $arrival_date;
+                while (strtotime($current_date) < strtotime($departure_date)) {
+                    if (in_array($current_date, $dates)) {
+                        // Initialize occupancy_by_date for this date
+                        if (!isset($occupancy_by_date[$current_date])) {
+                            $occupancy_by_date[$current_date] = array('total' => 0, 'by_category' => array());
+                        }
+
+                        // Count this room as occupied
+                        $occupancy_by_date[$current_date]['total']++;
+
+                        $category_id = $booking['category_id'] ?? 'unknown';
+                        if (!isset($occupancy_by_date[$current_date]['by_category'][$category_id])) {
+                            $occupancy_by_date[$current_date]['by_category'][$category_id] = 0;
+                        }
+                        $occupancy_by_date[$current_date]['by_category'][$category_id]++;
+
+                        // Initialize daily_stats for this date
+                        if (!isset($daily_stats[$current_date])) {
+                            $daily_stats[$current_date] = array(
+                                'totalPeople' => 0,
+                                'totalAdults' => 0,
+                                'totalChildren' => 0,
+                                'totalInfants' => 0,
+                                'byCategory' => array(),
+                                'leadTimeArriving' => array(
+                                    'totalDays' => 0,
+                                    'count' => 0,
+                                    'categories' => array(
+                                        'Walk In' => 0,
+                                        'Last Minute' => 0,
+                                        'Week' => 0,
+                                        'Fortnight' => 0,
+                                        'Month' => 0,
+                                        '3 Months' => 0,
+                                        '6 Months' => 0,
+                                        '1 Year' => 0,
+                                        'Over 1 Year' => 0,
+                                        'Unknown' => 0
+                                    )
+                                ),
+                                'leadTimeStaying' => array(
+                                    'totalDays' => 0,
+                                    'count' => 0,
+                                    'categories' => array(
+                                        'Walk In' => 0,
+                                        'Last Minute' => 0,
+                                        'Week' => 0,
+                                        'Fortnight' => 0,
+                                        'Month' => 0,
+                                        '3 Months' => 0,
+                                        '6 Months' => 0,
+                                        '1 Year' => 0,
+                                        'Over 1 Year' => 0,
+                                        'Unknown' => 0
+                                    )
+                                )
+                            );
+                        }
+
+                        // Count people
+                        $adults = intval($booking['booking_adults'] ?? 0);
+                        $children = intval($booking['booking_children'] ?? 0);
+                        $infants = intval($booking['booking_infants'] ?? 0);
+                        $total_people = $adults + $children + $infants;
+
+                        $daily_stats[$current_date]['totalPeople'] += $total_people;
+                        $daily_stats[$current_date]['totalAdults'] += $adults;
+                        $daily_stats[$current_date]['totalChildren'] += $children;
+                        $daily_stats[$current_date]['totalInfants'] += $infants;
+
+                        // Track rates by category
+                        if (!isset($daily_stats[$current_date]['byCategory'][$category_id])) {
+                            $category_name_full = $booking['category_name'] ?? 'Unknown';
+                            $daily_stats[$current_date]['byCategory'][$category_id] = array(
+                                'name' => $category_name_full,
+                                'totalRate' => 0,
+                                'roomCount' => 0,
+                                'totalPeople' => 0,
+                                'adults' => 0,
+                                'children' => 0,
+                                'infants' => 0
+                            );
+                        }
+
+                        // Find rate for this specific date from tariffs_quoted (like backend does)
+                        // Note: Backend uses forEach which adds ALL matching tariffs, so we do the same
+                        $daily_rate = 0;
+                        if (isset($booking['tariffs_quoted']) && is_array($booking['tariffs_quoted'])) {
+                            foreach ($booking['tariffs_quoted'] as $tariff) {
+                                if (isset($tariff['stay_date']) && substr($tariff['stay_date'], 0, 10) === $current_date) {
+                                    $daily_rate += floatval($tariff['calculated_amount'] ?? 0);
+                                    // NO break - add all matching tariffs like backend does
+                                }
+                            }
+                        }
+
+                        $daily_stats[$current_date]['byCategory'][$category_id]['totalRate'] += $daily_rate;
+                        $daily_stats[$current_date]['byCategory'][$category_id]['roomCount']++;
+                        $daily_stats[$current_date]['byCategory'][$category_id]['totalPeople'] += $total_people;
+                        $daily_stats[$current_date]['byCategory'][$category_id]['adults'] += $adults;
+                        $daily_stats[$current_date]['byCategory'][$category_id]['children'] += $children;
+                        $daily_stats[$current_date]['byCategory'][$category_id]['infants'] += $infants;
+
+                        // Helper function to categorize lead time
+                        $categorize_lead_time = function($days) {
+                            if ($days < 0) return 'Unknown';
+                            if ($days <= 1) return 'Walk In';
+                            if ($days <= 3) return 'Last Minute';
+                            if ($days <= 7) return 'Week';
+                            if ($days <= 14) return 'Fortnight';
+                            if ($days <= 30) return 'Month';
+                            if ($days <= 90) return '3 Months';
+                            if ($days <= 180) return '6 Months';
+                            if ($days <= 365) return '1 Year';
+                            return 'Over 1 Year';
+                        };
+
+                        // Calculate lead time for arriving bookings (only on arrival date)
+                        if ($current_date === $arrival_date) {
+                            $placed_date = isset($booking['booking_placed']) ? substr($booking['booking_placed'], 0, 10) : '';
+                            if (!empty($placed_date)) {
+                                $lead_time_days = (strtotime($arrival_date) - strtotime($placed_date)) / (60 * 60 * 24);
+                                if ($lead_time_days >= 0) {
+                                    $daily_stats[$current_date]['leadTimeArriving']['totalDays'] += $lead_time_days;
+                                    $daily_stats[$current_date]['leadTimeArriving']['count']++;
+
+                                    $category = $categorize_lead_time($lead_time_days);
+                                    $daily_stats[$current_date]['leadTimeArriving']['categories'][$category]++;
+                                }
+                            } else {
+                                // No booking placed date
+                                $daily_stats[$current_date]['leadTimeArriving']['categories']['Unknown']++;
+                            }
+                        }
+
+                        // Calculate lead time for staying bookings (all days during stay)
+                        $placed_date = isset($booking['booking_placed']) ? substr($booking['booking_placed'], 0, 10) : '';
+                        if (!empty($placed_date)) {
+                            $lead_time_days = (strtotime($arrival_date) - strtotime($placed_date)) / (60 * 60 * 24);
+                            if ($lead_time_days >= 0) {
+                                $daily_stats[$current_date]['leadTimeStaying']['totalDays'] += $lead_time_days;
+                                $daily_stats[$current_date]['leadTimeStaying']['count']++;
+
+                                $category = $categorize_lead_time($lead_time_days);
+                                $daily_stats[$current_date]['leadTimeStaying']['categories'][$category]++;
+                            }
+                        } else {
+                            // No booking placed date
+                            $daily_stats[$current_date]['leadTimeStaying']['categories']['Unknown']++;
+                        }
+
+                        // Track maximum rooms per category (for capacity calculation)
+                        if (!isset($max_rooms_by_category[$category_id])) {
+                            $max_rooms_by_category[$category_id] = 0;
+                        }
+                        if (isset($occupancy_by_date[$current_date]['by_category'][$category_id])) {
+                            $max_rooms_by_category[$category_id] = max(
+                                $max_rooms_by_category[$category_id],
+                                $occupancy_by_date[$current_date]['by_category'][$category_id]
+                            );
+                        }
+                    }
+
+                    $current_date = date('Y-m-d', strtotime($current_date . ' +1 day'));
+                }
+            }
+        }
+
+        // Calculate room_category_counts from sites data (excluding overflow)
+        // This matches the backend multi-day report logic
+        $room_category_counts = array();
+        if (!empty($sites_data)) {
+            foreach ($sites_data as $site) {
+                $category_id = $site['category_id'] ?? 'unknown';
+                $category_name = $site['category_name'] ?? 'Unknown';
+
+                // Exclude overflow rooms from occupancy calculations
+                if (stripos($category_name, 'overflow') === false) {
+                    if (!isset($room_category_counts[$category_id])) {
+                        $room_category_counts[$category_id] = array(
+                            'name' => $category_name,
+                            'count' => 0
+                        );
+                    }
+                    $room_category_counts[$category_id]['count']++;
+                }
+            }
+        }
+
+        // Log GL accounts and aggregated revenue for debugging
+        if (!empty($gl_accounts) && count($gl_accounts) > 0) {
+            error_log('HCR Occupancy: Total GL accounts: ' . count($gl_accounts));
+
+            // Check for accommodation-related GL groups
+            $acc_groups = array_filter($gl_accounts, function($acc) {
+                $name = $acc['gl_group_name'] ?? '';
+                return (strpos($name, 'ACC') === 0) || (stripos($name, 'accommodation') !== false);
+            });
+            error_log('HCR Occupancy: Found ' . count($acc_groups) . ' accommodation GL groups out of ' . count($gl_accounts) . ' total');
+
+            if (count($acc_groups) > 0) {
+                $acc_group_names = array_map(function($acc) {
+                    return ($acc['gl_group_id'] ?? 'no-id') . ': ' . ($acc['gl_group_name'] ?? 'no-name');
+                }, array_slice(array_values($acc_groups), 0, 3));
+                error_log('HCR Occupancy: Sample ACC groups: ' . json_encode($acc_group_names));
+            }
+        }
+
+        // Log aggregated earned revenue for debugging
+        if (!empty($earned_revenue) && count($earned_revenue) > 0) {
+            error_log('HCR Occupancy: Total aggregated revenue records: ' . count($earned_revenue));
+            error_log('HCR Occupancy: First aggregated revenue: ' . json_encode($earned_revenue[0]));
+
+            // Check if any revenue matches accommodation groups
+            $acc_revenue_count = 0;
+            foreach ($earned_revenue as $rev) {
+                $gl_group_id = $rev['gl_group_id'] ?? '';
+                foreach ($gl_accounts as $acc) {
+                    if (($acc['gl_group_id'] ?? '') == $gl_group_id) {
+                        $name = $acc['gl_group_name'] ?? '';
+                        if ((strpos($name, 'ACC') === 0) || (stripos($name, 'accommodation') !== false)) {
+                            $acc_revenue_count++;
+                        }
+                        break;
+                    }
+                }
+            }
+            error_log('HCR Occupancy: Found ' . $acc_revenue_count . ' accommodation revenue records');
+        }
+
+        // Log room counts and booking exclusions for debugging
+        $total_rooms = 0;
+        foreach ($room_category_counts as $cat_id => $cat_info) {
+            $total_rooms += $cat_info['count'];
+        }
+        error_log('HCR Occupancy: Total rooms (excluding overflow): ' . $total_rooms);
+        error_log('HCR Occupancy: Room categories: ' . json_encode($room_category_counts));
+        error_log('HCR Occupancy: Bookings processed: ' . $total_bookings_processed . ', Overflow bookings excluded: ' . $overflow_bookings_excluded);
+
+        // Log byCategory data for GGR verification (all dates)
+        foreach ($dates as $check_date) {
+            if (isset($daily_stats[$check_date]) && isset($daily_stats[$check_date]['byCategory'])) {
+                error_log('HCR Occupancy GGR: Date ' . $check_date . ' - Categories: ' . json_encode(array_keys($daily_stats[$check_date]['byCategory'])));
+
+                $date_total_rate = 0;
+                $date_room_count = 0;
+                foreach ($daily_stats[$check_date]['byCategory'] as $cat_id => $cat_data) {
+                    $cat_name = $cat_data['name'] ?? 'Unknown';
+                    $total_rate = $cat_data['totalRate'] ?? 0;
+                    $room_count = $cat_data['roomCount'] ?? 0;
+                    $date_total_rate += $total_rate;
+                    $date_room_count += $room_count;
+                    error_log('HCR Occupancy GGR:   ' . $cat_name . ' (ID: ' . $cat_id . ') - Total: £' . number_format($total_rate, 2) . ', Rooms: ' . $room_count);
+                }
+
+                $calculated_ggr = $date_room_count > 0 ? $date_total_rate / $date_room_count : 0;
+                error_log('HCR Occupancy GGR: ' . $check_date . ' TOTAL - £' . number_format($date_total_rate, 2) . ' / ' . $date_room_count . ' rooms = £' . number_format($calculated_ggr, 2) . ' per room');
+            }
+        }
+
+        // Build days array
+        $days = array();
+        foreach ($dates as $date) {
+            $days[] = array('date' => $date);
+        }
+
+        wp_send_json_success(array(
+            'days' => $days,
+            'earned_revenue' => $earned_revenue,
+            'gl_accounts' => $gl_accounts,
+            'occupancy_by_date' => $occupancy_by_date,
+            'room_category_counts' => $room_category_counts,
+            'daily_stats' => $daily_stats,
+            'sites_data' => $sites_data  // Include for front-end reference
         ));
     }
 }

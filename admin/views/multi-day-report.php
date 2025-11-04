@@ -1210,6 +1210,11 @@ jQuery(document).ready(function($) {
                 var categoryId = booking.category_id;
                 var categoryName = booking.category_name;
 
+                // Exclude overflow rooms from occupancy calculations (like frontend does)
+                if (categoryName && categoryName.toLowerCase().indexOf('overflow') !== -1) {
+                    return; // Skip this booking
+                }
+
                 // Calculate lead time (days between placed and arrival)
                 var leadTimeDays = 0;
                 var leadTimeCategory = 'Unknown';
