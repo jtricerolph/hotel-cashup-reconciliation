@@ -20,6 +20,7 @@ jQuery(document).ready(function($) {
     var newbookPaymentTotals = null;
     var formIsDirty = false;
     var isLoadingData = false; // Flag to prevent marking dirty during data load
+    var cachedTillPayments = null; // Store till payments for dynamic updates
 
     // =======================
     // Auto-check date from history
@@ -823,9 +824,11 @@ jQuery(document).ready(function($) {
                     console.log('HCR: Auto-fetch checking till_payments:', response.data.till_payments);
                     if (response.data.till_payments && response.data.till_payments.length > 0) {
                         console.log('HCR: Auto-fetch found till payments, calling displayTillPayments');
+                        cachedTillPayments = response.data.till_payments; // Cache for dynamic updates
                         displayTillPayments(response.data.till_payments);
                     } else {
                         console.log('HCR: Auto-fetch no till payments, hiding button');
+                        cachedTillPayments = null;
                         $('#hcr-show-till-payments').hide();
                     }
 
@@ -887,9 +890,11 @@ jQuery(document).ready(function($) {
                     console.log('HCR: Checking till_payments:', response.data.till_payments);
                     if (response.data.till_payments && response.data.till_payments.length > 0) {
                         console.log('HCR: Till payments found, calling displayTillPayments');
+                        cachedTillPayments = response.data.till_payments; // Cache for dynamic updates
                         displayTillPayments(response.data.till_payments);
                     } else {
                         console.log('HCR: No till payments, hiding button');
+                        cachedTillPayments = null;
                         // Hide till payments button if no data
                         $('#hcr-show-till-payments').hide();
                     }
@@ -1369,6 +1374,18 @@ jQuery(document).ready(function($) {
 
     $(document).on('mouseleave', '#hcr-till-payments-tooltip', function() {
         $(this).fadeOut(200);
+    });
+
+    // =======================
+    // Dynamic Till Payments Update
+    // =======================
+
+    // Update till payments tooltip when restaurant/bar PDQ values change
+    $(document).on('input change', '#restaurant_total, #public_restaurant_total, #restaurant_amex, #public_restaurant_amex', function() {
+        console.log('HCR: Restaurant/Bar PDQ value changed, updating till payments display');
+        if (cachedTillPayments && cachedTillPayments.length > 0) {
+            displayTillPayments(cachedTillPayments);
+        }
     });
 
     // =======================
