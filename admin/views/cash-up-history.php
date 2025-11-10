@@ -33,10 +33,13 @@ $count_query = "SELECT COUNT(DISTINCT cu.id)
                 FROM {$wpdb->prefix}hcr_cash_ups cu
                 WHERE 1=1";
 
-// Build query for fetching results with total variance
+// Build query for fetching results with total variance and breakdown by payment type
 $query = "SELECT cu.*,
                  u.display_name as created_by_name,
-                 COALESCE(SUM(r.variance), 0) as total_variance
+                 COALESCE(SUM(r.variance), 0) as total_variance,
+                 COALESCE(SUM(CASE WHEN r.category = 'Cash' THEN r.variance ELSE 0 END), 0) as cash_variance,
+                 COALESCE(SUM(CASE WHEN r.category IN ('PDQ Visa/MC', 'PDQ Amex', 'Gateway Visa/MC', 'Gateway Amex') THEN r.variance ELSE 0 END), 0) as card_variance,
+                 COALESCE(SUM(CASE WHEN r.category = 'BACS/Bank Transfer' THEN r.variance ELSE 0 END), 0) as bacs_variance
           FROM {$wpdb->prefix}hcr_cash_ups cu
           LEFT JOIN {$wpdb->prefix}users u ON cu.created_by = u.ID
           LEFT JOIN {$wpdb->prefix}hcr_reconciliation r ON cu.id = r.cash_up_id
@@ -147,18 +150,33 @@ if (!empty($query_params)) {
                     <td colspan="9">No cash ups found.</td>
                 </tr>
             <?php else: ?>
+                <?php
+                    // Helper function for variance breakdown display
+                    if (!function_exists('hcr_format_variance_breakdown')) {
+                        function hcr_format_variance_breakdown($amount, $label) {
+                            if (abs($amount) < 0.01) return ''; // Skip if zero
+                            $sign = $amount >= 0 ? '+' : '';
+                            $arrow = $amount >= 0 ? '↑' : '↓';
+                            return sprintf('%s: %s£%s %s', $label, $sign, number_format(abs($amount), 2), $arrow);
+                        }
+                    }
+                ?>
                 <?php foreach ($cash_ups as $cash_up): ?>
                     <?php
-                        $variance = floatval($cash_up->total_variance);
+                        $total_variance = floatval($cash_up->total_variance);
+                        $cash_variance = floatval($cash_up->cash_variance);
+                        $card_variance = floatval($cash_up->card_variance);
+                        $bacs_variance = floatval($cash_up->bacs_variance);
+
                         $variance_class = '';
-                        if ($variance > 0) {
+                        if ($total_variance > 0) {
                             $variance_class = 'hcr-variance-positive';
-                        } elseif ($variance < 0) {
+                        } elseif ($total_variance < 0) {
                             $variance_class = 'hcr-variance-negative';
                         } else {
                             $variance_class = 'hcr-variance-zero';
                         }
-                        $variance_sign = $variance >= 0 ? '+' : '';
+                        $variance_sign = $total_variance >= 0 ? '+' : '';
                     ?>
                     <tr>
                         <td>
@@ -174,7 +192,26 @@ if (!empty($query_params)) {
                         </td>
                         <td>£<?php echo number_format($cash_up->total_cash_counted, 2); ?></td>
                         <td class="<?php echo esc_attr($variance_class); ?>" style="font-weight: 600;">
-                            <?php echo $variance_sign; ?>£<?php echo number_format(abs($variance), 2); ?>
+                            <div style="margin-bottom: 2px;">
+                                <?php echo $variance_sign; ?>£<?php echo number_format(abs($total_variance), 2); ?>
+                            </div>
+                            <div style="font-size: 8px; font-weight: normal; line-height: 1.3;">
+                                <?php
+                                    $breakdown = array();
+                                    if (abs($cash_variance) >= 0.01) {
+                                        $breakdown[] = hcr_format_variance_breakdown($cash_variance, 'Cash');
+                                    }
+                                    if (abs($card_variance) >= 0.01) {
+                                        $breakdown[] = hcr_format_variance_breakdown($card_variance, 'Card');
+                                    }
+                                    if (abs($bacs_variance) >= 0.01) {
+                                        $breakdown[] = hcr_format_variance_breakdown($bacs_variance, 'BACS');
+                                    }
+                                    if (!empty($breakdown)) {
+                                        echo implode('<br>', $breakdown);
+                                    }
+                                ?>
+                            </div>
                         </td>
                         <td><?php echo esc_html($cash_up->created_by_name); ?></td>
                         <td><?php echo esc_html(date('d/m/Y H:i', strtotime($cash_up->created_at))); ?></td>
