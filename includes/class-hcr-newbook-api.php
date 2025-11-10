@@ -101,15 +101,16 @@ class HCR_Newbook_API {
         $payments = array();
 
         foreach ($response['data'] as $transaction) {
-            // Skip non-payment items (but include refunds as they reduce totals)
+            // Skip non-payment items (but include refunds and voided transactions)
             $item_type = $transaction['item_type'] ?? '';
-            if ($item_type !== 'payments_raised' && $item_type !== 'refunds_raised') {
+            if (!in_array($item_type, ['payments_raised', 'refunds_raised', 'payments_voided', 'refunds_voided'])) {
                 continue;
             }
 
             // In Newbook, payments are negative and refunds are positive (account perspective)
             // For reconciliation, we want payments positive and refunds negative (revenue perspective)
-            // So we simply negate the value
+            // Voided payments are positive (like refunds) and voided refunds are negative (like payments)
+            // We negate all values to convert from accounting to revenue perspective
             $amount = -floatval($transaction['item_amount'] ?? 0);
 
             $payments[] = array(
@@ -169,9 +170,9 @@ class HCR_Newbook_API {
         $payments_by_date = array();
 
         foreach ($response['data'] as $transaction) {
-            // Skip non-payment items (but include refunds as they reduce totals)
+            // Skip non-payment items (but include refunds and voided transactions)
             $item_type = $transaction['item_type'] ?? '';
-            if ($item_type !== 'payments_raised' && $item_type !== 'refunds_raised') {
+            if (!in_array($item_type, ['payments_raised', 'refunds_raised', 'payments_voided', 'refunds_voided'])) {
                 continue;
             }
 
@@ -185,7 +186,8 @@ class HCR_Newbook_API {
 
             // In Newbook, payments are negative and refunds are positive (account perspective)
             // For reconciliation, we want payments positive and refunds negative (revenue perspective)
-            // So we simply negate the value
+            // Voided payments are positive (like refunds) and voided refunds are negative (like payments)
+            // We negate all values to convert from accounting to revenue perspective
             $amount = -floatval($transaction['item_amount'] ?? 0);
 
             $card_type = $this->identify_card_type($transaction);
@@ -361,9 +363,9 @@ class HCR_Newbook_API {
         $matched_count = 0;
 
         foreach ($transaction_data['data'] as $transaction) {
-            // Only process payments and refunds
+            // Only process payments, refunds, and voided transactions
             $item_type = $transaction['item_type'] ?? '';
-            if ($item_type !== 'payments_raised' && $item_type !== 'refunds_raised') {
+            if (!in_array($item_type, ['payments_raised', 'refunds_raised', 'payments_voided', 'refunds_voided'])) {
                 continue;
             }
 
@@ -466,9 +468,9 @@ class HCR_Newbook_API {
         }
 
         foreach ($transaction_data['data'] as $transaction) {
-            // Only process payments and refunds
+            // Only process payments, refunds, and voided transactions
             $item_type = $transaction['item_type'] ?? '';
-            if ($item_type !== 'payments_raised' && $item_type !== 'refunds_raised') {
+            if (!in_array($item_type, ['payments_raised', 'refunds_raised', 'payments_voided', 'refunds_voided'])) {
                 continue;
             }
 
@@ -480,6 +482,9 @@ class HCR_Newbook_API {
             $booking_id = $transaction['booking_id'] ?? '';
             $account_name = $transaction['account_for_name'] ?? '';
 
+            // Determine if this is a voided transaction for special formatting
+            $is_voided = ($item_type === 'payments_voided' || $item_type === 'refunds_voided');
+
             // Categorize payment type
             $category = $this->categorize_payment_type($payment_type);
 
@@ -490,7 +495,9 @@ class HCR_Newbook_API {
                 'time' => $time,
                 'payment_type' => $payment_type,
                 'details' => '',
-                'amount' => $amount
+                'amount' => $amount,
+                'item_type' => $item_type,
+                'is_voided' => $is_voided
             );
 
             if ($is_ticket) {

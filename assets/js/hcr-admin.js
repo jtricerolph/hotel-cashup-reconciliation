@@ -1211,9 +1211,10 @@ jQuery(document).ready(function($) {
                     $('#hcr-reception-breakdown').append('<tr class="hcr-breakdown-subheading"><td colspan="3"><strong>Manual ' + paymentCategory + '</strong></td><td style="text-align: right;"><strong>' + subtotalFormatted + '</strong></td></tr>');
                     transactions.forEach(function(transaction) {
                         var timeFormatted = formatTransactionTime(transaction.time);
-                        var amountFormatted = formatTransactionAmount(transaction.amount);
+                        var amountFormatted = formatTransactionAmount(transaction.amount, transaction.item_type);
+                        var rowClass = transaction.is_voided ? 'hcr-selectable-row hcr-voided-transaction' : 'hcr-selectable-row';
                         $('#hcr-reception-breakdown').append(
-                            '<tr class="hcr-selectable-row">' +
+                            '<tr class="' + rowClass + '">' +
                             '<td>' + timeFormatted + '</td>' +
                             '<td>' + (transaction.payment_type || '') + '</td>' +
                             '<td>' + transaction.details + '</td>' +
@@ -1241,9 +1242,10 @@ jQuery(document).ready(function($) {
                     $('#hcr-reception-breakdown').append('<tr class="hcr-breakdown-subheading"><td colspan="3"><strong>Gateway ' + paymentCategory + '</strong></td><td style="text-align: right;"><strong>' + subtotalFormatted + '</strong></td></tr>');
                     transactions.forEach(function(transaction) {
                         var timeFormatted = formatTransactionTime(transaction.time);
-                        var amountFormatted = formatTransactionAmount(transaction.amount);
+                        var amountFormatted = formatTransactionAmount(transaction.amount, transaction.item_type);
+                        var rowClass = transaction.is_voided ? 'hcr-selectable-row hcr-voided-transaction' : 'hcr-selectable-row';
                         $('#hcr-reception-breakdown').append(
-                            '<tr class="hcr-selectable-row">' +
+                            '<tr class="' + rowClass + '">' +
                             '<td>' + timeFormatted + '</td>' +
                             '<td>' + (transaction.payment_type || '') + '</td>' +
                             '<td>' + transaction.details + '</td>' +
@@ -1274,9 +1276,10 @@ jQuery(document).ready(function($) {
                     $('#hcr-restaurant-breakdown').append('<tr class="hcr-breakdown-subheading"><td colspan="3"><strong>' + paymentCategory + '</strong></td><td style="text-align: right;"><strong>' + subtotalFormatted + '</strong></td></tr>');
                     transactions.forEach(function(transaction) {
                         var timeFormatted = formatTransactionTime(transaction.time);
-                        var amountFormatted = formatTransactionAmount(transaction.amount);
+                        var amountFormatted = formatTransactionAmount(transaction.amount, transaction.item_type);
+                        var rowClass = transaction.is_voided ? 'hcr-selectable-row hcr-voided-transaction' : 'hcr-selectable-row';
                         $('#hcr-restaurant-breakdown').append(
-                            '<tr class="hcr-selectable-row">' +
+                            '<tr class="' + rowClass + '">' +
                             '<td>' + timeFormatted + '</td>' +
                             '<td>' + (transaction.payment_type || '') + '</td>' +
                             '<td>' + transaction.details + '</td>' +
@@ -1304,14 +1307,28 @@ jQuery(document).ready(function($) {
     // Format transaction amount (accounting style)
     // In Newbook: payments are negative (money in), refunds are positive (money out)
     // Display: show refunds in red with parentheses
-    function formatTransactionAmount(amount) {
+    // itemType parameter: 'payments_voided', 'refunds_voided', 'payments_raised', 'refunds_raised'
+    function formatTransactionAmount(amount, itemType) {
         var absAmount = Math.abs(amount);
         var formatted = '£' + absAmount.toFixed(2);
+        var isVoided = (itemType === 'payments_voided' || itemType === 'refunds_voided');
+
         if (amount > 0) {
             // Refund (positive) - show in red with parentheses
-            return '<span style="color: #721c24;">(' + formatted + ')</span>';
+            var display = '<span style="color: #721c24;">(' + formatted + ')</span>';
+            if (itemType === 'refunds_voided') {
+                // Voided refund - strikethrough only
+                display = '<span style="text-decoration: line-through;">' + display + '</span>';
+            }
+            return display;
         }
+
         // Payment (negative) - show normally
+        if (itemType === 'payments_voided') {
+            // Voided payment - show in brackets AND strikethrough
+            return '<span style="text-decoration: line-through; color: #721c24;">(' + formatted + ')</span>';
+        }
+
         return formatted;
     }
 

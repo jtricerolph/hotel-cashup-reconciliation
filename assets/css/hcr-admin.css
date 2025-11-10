@@ -523,6 +523,15 @@
     background-color: #c3e6cb !important;
 }
 
+/* Voided transaction styling */
+.hcr-selectable-row.hcr-voided-transaction {
+    opacity: 0.6;
+}
+
+.hcr-selectable-row.hcr-voided-transaction:hover {
+    opacity: 0.75;
+}
+
 /* Receipt Photos Grid */
 .hcr-photos-grid {
     display: grid;
