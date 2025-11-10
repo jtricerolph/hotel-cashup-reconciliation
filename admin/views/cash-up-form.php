@@ -50,7 +50,7 @@ $auto_load = isset($_GET['date']) ? 'true' : 'false';
         <input type="hidden" id="hcr-auto-load" value="<?php echo esc_attr($auto_load); ?>">
 
         <!-- Cash Counting Section -->
-        <h2>Cash Counting</h2>
+        <h2 id="hcr-section-counting" class="hcr-section-header">Cash Counting</h2>
 
         <div class="hcr-counting-grid">
             <!-- Till Float Count Section -->
@@ -110,6 +110,7 @@ $auto_load = isset($_GET['date']) ? 'true' : 'false';
                         </tr>
                     </tfoot>
                 </table>
+                <button type="button" class="hcr-next-section-btn" data-target="hcr-section-card-machines">NEXT ›</button>
             </div>
 
             <!-- Cash Takings Banked Section -->
@@ -169,11 +170,12 @@ $auto_load = isset($_GET['date']) ? 'true' : 'false';
                         </tr>
                     </tfoot>
                 </table>
+                <button type="button" class="hcr-next-section-btn" data-target="hcr-section-card-machines">NEXT ›</button>
             </div>
         </div>
 
         <!-- Card Machines Section -->
-        <h2>Card Machines</h2>
+        <h2 id="hcr-section-card-machines" class="hcr-section-header">Card Machines</h2>
         <p>Enter total and Amex amounts for each machine. Visa/Mastercard will be calculated automatically.</p>
 
         <div class="hcr-card-machines">
@@ -263,7 +265,7 @@ $auto_load = isset($_GET['date']) ? 'true' : 'false';
         </div>
 
         <!-- Newbook Data Section -->
-        <h2>Newbook Payment Data</h2>
+        <h2 id="hcr-section-newbook" class="hcr-section-header">Newbook Payment Data</h2>
         <p style="display: flex; justify-content: space-between; align-items: center;">
             <span>
                 <button type="button" id="hcr-fetch-payments" class="button button-secondary">Fetch Newbook Payments</button>
@@ -347,7 +349,7 @@ $auto_load = isset($_GET['date']) ? 'true' : 'false';
         </div>
 
         <!-- Notes Section -->
-        <h2>Notes</h2>
+        <h2 id="hcr-section-notes" class="hcr-section-header">Notes</h2>
         <p>
             <textarea id="cash_up_notes" name="notes" rows="4" class="large-text"></textarea>
         </p>

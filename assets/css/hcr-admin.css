@@ -29,6 +29,49 @@
     font-size: 14px;
 }
 
+/* Clickable Section Headers */
+.hcr-section-header {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.2s ease;
+}
+
+.hcr-section-header:hover {
+    color: #2271b1;
+}
+
+/* NEXT Section Buttons */
+.hcr-next-section-btn {
+    display: none; /* Hidden by default, shown only on smaller screens */
+    margin-top: 15px;
+    padding: 8px 16px;
+    background: #2271b1;
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    float: right;
+    clear: both;
+}
+
+.hcr-next-section-btn:hover {
+    background: #135e96;
+}
+
+.hcr-next-section-btn:active {
+    background: #0a4066;
+}
+
+/* Show NEXT buttons on tablets and smaller where counting blocks stack */
+@media screen and (max-width: 900px) {
+    .hcr-next-section-btn {
+        display: inline-block;
+    }
+}
+
 .hcr-message {
     margin: 15px 0;
     padding: 10px 15px;

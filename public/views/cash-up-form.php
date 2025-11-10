@@ -48,7 +48,7 @@ $preselected_date = isset($atts['date']) ? $atts['date'] : date('Y-m-d');
         <input type="hidden" name="nonce" value="<?php echo wp_create_nonce('hcr_public_nonce'); ?>">
 
         <!-- Cash Counting Section -->
-        <h3>Cash Counting</h3>
+        <h3 id="hcr-section-counting" class="hcr-section-header">Cash Counting</h3>
         <p class="hcr-help-text">Enter EITHER quantity OR value for each denomination.</p>
 
         <div class="hcr-counting-grid">
@@ -109,6 +109,7 @@ $preselected_date = isset($atts['date']) ? $atts['date'] : date('Y-m-d');
                         </tr>
                     </tfoot>
                 </table>
+                <button type="button" class="hcr-next-section-btn" data-target="hcr-section-card-machines">NEXT ›</button>
             </div>
 
             <!-- Cash Takings Banked -->
@@ -168,11 +169,12 @@ $preselected_date = isset($atts['date']) ? $atts['date'] : date('Y-m-d');
                         </tr>
                     </tfoot>
                 </table>
+                <button type="button" class="hcr-next-section-btn" data-target="hcr-section-card-machines">NEXT ›</button>
             </div>
         </div>
 
         <!-- Card Machines -->
-        <h3>Card Machines</h3>
+        <h3 id="hcr-section-card-machines" class="hcr-section-header">Card Machines</h3>
 
         <div class="hcr-machines-grid">
             <div class="hcr-machine-box">
@@ -222,7 +224,7 @@ $preselected_date = isset($atts['date']) ? $atts['date'] : date('Y-m-d');
         </div>
 
         <!-- Newbook Data Section -->
-        <h3>Newbook Payment Data</h3>
+        <h3 id="hcr-section-newbook" class="hcr-section-header">Newbook Payment Data</h3>
         <p style="display: flex; justify-content: space-between; align-items: center;">
             <span>
                 <button type="button" id="hcr-fetch-payments" class="hcr-button-secondary">Fetch Newbook Payments</button>
@@ -306,7 +308,7 @@ $preselected_date = isset($atts['date']) ? $atts['date'] : date('Y-m-d');
         </div>
 
         <!-- Notes -->
-        <h3>Notes</h3>
+        <h3 id="hcr-section-notes" class="hcr-section-header">Notes</h3>
         <textarea id="public_cash_up_notes" name="notes" rows="3" placeholder="Any notes or comments..."></textarea>
 
         <!-- Receipt Photos -->

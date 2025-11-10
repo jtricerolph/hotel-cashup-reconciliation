@@ -2020,4 +2020,34 @@ jQuery(document).ready(function($) {
     window.hcrDisplayTillPayments = displayTillPayments;
     window.hcrUpdateTotalFloat = updateTotalFloat;
     window.hcrDisplayExistingAttachments = displayExistingAttachments;
+
+    // =======================
+    // Section Header Click Scrolling
+    // =======================
+
+    // Make section headers clickable to scroll to top
+    $(document).on('click', '.hcr-section-header', function() {
+        var targetId = $(this).attr('id');
+        if (targetId) {
+            scrollToSection(targetId);
+        }
+    });
+
+    // NEXT button click handler
+    $(document).on('click', '.hcr-next-section-btn', function() {
+        var targetId = $(this).data('target');
+        if (targetId) {
+            scrollToSection(targetId);
+        }
+    });
+
+    // Smooth scroll function to align section to top
+    function scrollToSection(sectionId) {
+        var $target = $('#' + sectionId);
+        if ($target.length) {
+            $('html, body').animate({
+                scrollTop: $target.offset().top
+            }, 400);
+        }
+    }
 });
