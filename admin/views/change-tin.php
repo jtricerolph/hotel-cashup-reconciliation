@@ -233,6 +233,11 @@ $denom_labels = array(
 }
 
 /* Print styles */
+@page {
+    size: A4;
+    margin: 10mm;
+}
+
 @media print {
     /* Hide everything except the modal content */
     body * {
@@ -246,8 +251,9 @@ $denom_labels = array(
 
     /* Hide modal overlay background */
     #view-count-modal {
-        position: static;
+        position: static !important;
         background-color: transparent !important;
+        height: auto !important;
     }
 
     /* Make modal content full-width */
@@ -267,19 +273,43 @@ $denom_labels = array(
         display: none !important;
     }
 
-    /* Ensure tables print properly */
-    table {
-        page-break-inside: auto;
-    }
-
-    tr {
-        page-break-inside: avoid;
-        page-break-after: auto;
-    }
-
-    /* Ensure proper spacing for print */
+    /* Scale content to fit on one page */
     #modal-content {
-        padding: 20px;
+        padding: 5px !important;
+        font-size: 11px !important;
+        transform: scale(0.85);
+        transform-origin: top left;
+        width: 118%;
+    }
+
+    #modal-content h3 {
+        font-size: 13px !important;
+        margin: 8px 0 5px 0 !important;
+    }
+
+    #modal-content p {
+        margin: 3px 0 !important;
+        font-size: 11px !important;
+    }
+
+    /* Prevent page breaks */
+    #modal-content,
+    #modal-content > * {
+        page-break-inside: avoid !important;
+        page-break-after: avoid !important;
+    }
+
+    /* Compact table styling */
+    table.widefat {
+        page-break-inside: avoid !important;
+        font-size: 10px !important;
+        margin: 5px 0 !important;
+    }
+
+    table.widefat th,
+    table.widefat td {
+        padding: 3px 5px !important;
+        font-size: 10px !important;
     }
 
     /* Make sure colors print */

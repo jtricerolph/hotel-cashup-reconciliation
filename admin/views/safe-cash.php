@@ -198,6 +198,11 @@ rsort($all_denominations);
     box-shadow: inset 0 0 0 1px #4a90e2;
 }
 
+@page {
+    size: A4;
+    margin: 10mm;
+}
+
 @media print {
     /* Hide everything except modal content */
     body * {
@@ -233,32 +238,53 @@ rsort($all_denominations);
         display: none !important;
     }
 
-    /* Ensure tables print properly */
-    table {
-        page-break-inside: auto;
-    }
-
-    tr {
-        page-break-inside: avoid;
-        page-break-after: auto;
-    }
-
-    /* Ensure proper spacing for print */
+    /* Scale content to fit on one page */
     #modal-content {
-        padding: 20px;
+        padding: 5px !important;
+        font-size: 11px !important;
+        transform: scale(0.85);
+        transform-origin: top left;
+        width: 118%;
     }
 
-    /* Style table for print */
+    #modal-content h3 {
+        font-size: 13px !important;
+        margin: 8px 0 5px 0 !important;
+    }
+
+    #modal-content p {
+        margin: 3px 0 !important;
+        font-size: 11px !important;
+    }
+
+    /* Prevent page breaks */
+    #modal-content,
+    #modal-content > * {
+        page-break-inside: avoid !important;
+        page-break-after: avoid !important;
+    }
+
+    /* Compact table styling */
+    table.widefat,
+    .modal-denom-table {
+        page-break-inside: avoid !important;
+        font-size: 10px !important;
+        margin: 5px 0 !important;
+    }
+
+    table.widefat th,
+    table.widefat td,
+    .modal-denom-table th,
+    .modal-denom-table td {
+        padding: 3px 5px !important;
+        font-size: 10px !important;
+        border: 1px solid #000 !important;
+    }
+
     .modal-denom-table {
         border-collapse: collapse;
         width: auto !important;
         max-width: 500px;
-    }
-
-    .modal-denom-table th,
-    .modal-denom-table td {
-        border: 1px solid #000 !important;
-        padding: 8px !important;
     }
 
     .modal-denom-table thead th {
