@@ -247,9 +247,9 @@ jQuery(document).ready(function($) {
     function clearForm() {
         console.log('HCR: Clearing form');
 
-        // Clear denomination inputs
-        $('.float-denom-quantity, .float-denom-value').val('');
-        $('.takings-denom-quantity, .takings-denom-value').val('');
+        // Clear denomination inputs and re-enable all fields
+        $('.float-denom-quantity, .float-denom-value').val('').prop('disabled', false);
+        $('.takings-denom-quantity, .takings-denom-value').val('').prop('disabled', false);
         $('.float-denom-total, .takings-denom-total').text('£0.00');
 
         // Clear validation styling from denomination inputs
