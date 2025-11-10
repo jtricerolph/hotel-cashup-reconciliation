@@ -23,6 +23,17 @@ jQuery(document).ready(function($) {
     var cachedTillPayments = null; // Store till payments for dynamic updates
 
     // =======================
+    // Auto-select input field values on focus
+    // =======================
+
+    $(document).on('focus', 'input[type="number"], input[type="text"]', function() {
+        // Select all text when focusing on input fields with values
+        if ($(this).val()) {
+            $(this).select();
+        }
+    });
+
+    // =======================
     // Auto-check date from history
     // =======================
 

@@ -21,6 +21,17 @@ jQuery(document).ready(function($) {
     var publicFormIsDirty = false;
 
     // =======================
+    // Auto-select input field values on focus
+    // =======================
+
+    $(document).on('focus', 'input[type="number"], input[type="text"]', function() {
+        // Select all text when focusing on input fields with values
+        if ($(this).val()) {
+            $(this).select();
+        }
+    });
+
+    // =======================
     // Public Dirty Form Tracking
     // =======================
 
