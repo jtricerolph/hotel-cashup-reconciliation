@@ -232,125 +232,7 @@ $denom_labels = array(
     box-shadow: inset 0 0 0 1px #4a90e2;
 }
 
-/* Print styles */
-@page {
-    size: A4 portrait;
-    margin: 8mm;
-}
-
-@media print {
-    /* Clear WordPress admin styles */
-    * {
-        margin: 0 !important;
-        padding: 0 !important;
-        box-sizing: border-box !important;
-    }
-
-    /* Hide everything */
-    body > * {
-        display: none !important;
-    }
-
-    /* Show only the modal */
-    #view-count-modal {
-        display: block !important;
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: auto !important;
-        background: transparent !important;
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-
-    /* Make modal content full-width */
-    #modal-inner {
-        margin: 0 !important;
-        padding: 0 !important;
-        max-width: 100% !important;
-        width: 100% !important;
-        max-height: none !important;
-        overflow: visible !important;
-        box-shadow: none !important;
-        border-radius: 0 !important;
-        background: transparent !important;
-    }
-
-    /* Hide buttons and non-printable elements */
-    .no-print {
-        display: none !important;
-    }
-
-    /* Scale content to fit on one page - more aggressive scaling */
-    #modal-content {
-        padding: 0 !important;
-        margin: 0 !important;
-        font-size: 8px !important;
-        transform: scale(0.7);
-        transform-origin: top left;
-        width: 143%;
-        max-width: 143%;
-        position: relative !important;
-        left: 0 !important;
-        top: 0 !important;
-    }
-
-    #modal-content h3 {
-        font-size: 11px !important;
-        margin: 5px 0 3px 0 !important;
-    }
-
-    #modal-content p {
-        margin: 2px 0 !important;
-        font-size: 9px !important;
-    }
-
-    /* Prevent page breaks */
-    #modal-content,
-    #modal-content > *,
-    #modal-content table {
-        page-break-inside: avoid !important;
-        page-break-after: avoid !important;
-        page-break-before: avoid !important;
-    }
-
-    /* Compact table styling */
-    table.widefat {
-        page-break-inside: avoid !important;
-        font-size: 8px !important;
-        margin: 3px 0 !important;
-        width: 100% !important;
-        max-width: 100% !important;
-    }
-
-    table.widefat th,
-    table.widefat td {
-        padding: 2px 3px !important;
-        font-size: 8px !important;
-        white-space: nowrap;
-    }
-
-    /* Make sure colors print */
-    .variance-positive,
-    .topup-positive {
-        color: green !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-
-    .variance-negative {
-        color: red !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-
-    .topup-negative {
-        color: orange !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-}
+/* Print styles - not needed since we open a new window for printing */
 </style>
 
 <script>
@@ -713,7 +595,39 @@ jQuery(document).ready(function($) {
 
     // Print modal
     $('#print-modal-btn').on('click', function() {
-        window.print();
+        // Get the modal content
+        var content = $('#modal-content').html();
+
+        // Open a new window for printing
+        var printWindow = window.open('', '_blank', 'width=800,height=600');
+
+        // Write the HTML document
+        printWindow.document.write('<!DOCTYPE html>');
+        printWindow.document.write('<html><head><title>Print Change Tin Count</title>');
+        printWindow.document.write('<style>');
+        printWindow.document.write('body { font-family: Arial, sans-serif; font-size: 10px; margin: 10mm; }');
+        printWindow.document.write('h3 { font-size: 12px; margin: 8px 0 5px 0; }');
+        printWindow.document.write('p { margin: 3px 0; font-size: 10px; }');
+        printWindow.document.write('table.widefat { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 9px; }');
+        printWindow.document.write('table.widefat th, table.widefat td { border: 1px solid #000; padding: 4px 6px; text-align: left; }');
+        printWindow.document.write('table.widefat th { background: #f0f0f0; font-weight: bold; }');
+        printWindow.document.write('table.widefat td:nth-child(2), table.widefat td:nth-child(3) { text-align: right; }');
+        printWindow.document.write('.variance-positive, .topup-positive { color: green; }');
+        printWindow.document.write('.variance-negative { color: red; }');
+        printWindow.document.write('.topup-negative { color: orange; }');
+        printWindow.document.write('.variance-balanced { color: gray; }');
+        printWindow.document.write('@media print { body { margin: 8mm; } }');
+        printWindow.document.write('</style></head><body>');
+        printWindow.document.write(content);
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+
+        // Wait for content to load, then print
+        printWindow.onload = function() {
+            printWindow.print();
+            // Optional: Close window after printing (commented out to let user review)
+            // printWindow.onafterprint = function() { printWindow.close(); };
+        };
     });
 
     // Close modal
