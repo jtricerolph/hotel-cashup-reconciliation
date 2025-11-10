@@ -159,12 +159,13 @@ $all_denominations = array_filter($all_denominations, function($denom) {
                     <th>Total Receipts</th>
                     <th>Variance</th>
                     <th>Status</th>
+                    <th>Notes</th>
                     <th>Action</th>
                 </tr>
             </thead>
             <tbody id="history-tbody">
                 <tr>
-                    <td colspan="6" style="text-align: center; padding: 20px;">Loading...</td>
+                    <td colspan="7" style="text-align: center; padding: 20px;">Loading...</td>
                 </tr>
             </tbody>
         </table>
@@ -230,6 +231,14 @@ $all_denominations = array_filter($all_denominations, function($denom) {
 
 .widefat td:hover {
     box-shadow: inset 0 0 0 1px #4a90e2;
+}
+
+/* Notes column styling */
+.notes-cell {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Print styles - not needed since we open a new window for printing */
@@ -415,7 +424,7 @@ jQuery(document).ready(function($) {
                 var html = '';
 
                 if (counts.length === 0 && !append) {
-                    html = '<tr><td colspan="6" style="text-align: center; padding: 20px;">No counts found.</td></tr>';
+                    html = '<tr><td colspan="7" style="text-align: center; padding: 20px;">No counts found.</td></tr>';
                 } else {
                     counts.forEach(function(count) {
                         var variance = parseFloat(count.variance);
@@ -430,6 +439,7 @@ jQuery(document).ready(function($) {
                             '<td>£' + parseFloat(count.total_receipts).toFixed(2) + '</td>' +
                             '<td class="' + varianceClass + '">' + varianceText + '</td>' +
                             '<td><span class="status-indicator ' + statusClass + '"></span></td>' +
+                            '<td class="notes-cell">' + (count.notes || '') + '</td>' +
                             '<td>' +
                                 '<button type="button" class="button view-count-btn" data-count-id="' + count.id + '">View</button> ' +
                                 '<button type="button" class="button load-receipts-btn" data-count-id="' + count.id + '">Load Receipts</button> ' +

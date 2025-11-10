@@ -149,12 +149,13 @@ rsort($all_denominations);
                     <th>Date/Time</th>
                     <th>Total in Safe</th>
                     <th>Total Banked</th>
+                    <th>Notes</th>
                     <th>Action</th>
                 </tr>
             </thead>
             <tbody id="history-tbody">
                 <tr>
-                    <td colspan="4" style="text-align: center; padding: 20px;">Loading...</td>
+                    <td colspan="5" style="text-align: center; padding: 20px;">Loading...</td>
                 </tr>
             </tbody>
         </table>
@@ -201,6 +202,14 @@ rsort($all_denominations);
 
 .hcr-safe-table .excel-cell:hover {
     box-shadow: inset 0 0 0 1px #4a90e2;
+}
+
+/* Notes column styling */
+.notes-cell {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Print styles - not needed since we open a new window for printing */
@@ -428,17 +437,22 @@ jQuery(document).ready(function($) {
                 var html = '';
 
                 if (counts.length === 0 && !append) {
-                    html = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No counts found.</td></tr>';
+                    html = '<tr><td colspan="5" style="text-align: center; padding: 20px;">No counts found.</td></tr>';
                 } else {
                     counts.forEach(function(count) {
                         var isBank = count.notes && count.notes.indexOf('[BANKED]') === 0;
                         var safeAmount = isBank ? '£0.00' : '£' + parseFloat(count.total_counted).toFixed(2);
                         var bankedAmount = isBank ? '£' + parseFloat(count.total_counted).toFixed(2) : '—';
+                        var displayNotes = count.notes || '';
+                        if (isBank) {
+                            displayNotes = displayNotes.replace('[BANKED] ', '');
+                        }
 
                         html += '<tr>' +
                             '<td>' + count.count_date + '</td>' +
                             '<td>' + safeAmount + '</td>' +
                             '<td>' + bankedAmount + '</td>' +
+                            '<td class="notes-cell">' + displayNotes + '</td>' +
                             '<td>' +
                                 '<button type="button" class="button view-count-btn" data-count-id="' + count.id + '">View</button> ' +
                                 (isBank ? '' : '<button type="button" class="button button-primary load-for-edit-btn" data-count-id="' + count.id + '">Preload Count</button>') +
