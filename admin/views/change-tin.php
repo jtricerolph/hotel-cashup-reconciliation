@@ -234,8 +234,8 @@ $denom_labels = array(
 
 /* Print styles */
 @page {
-    size: A4;
-    margin: 10mm;
+    size: A4 portrait;
+    margin: 8mm;
 }
 
 @media print {
@@ -254,6 +254,7 @@ $denom_labels = array(
         position: static !important;
         background-color: transparent !important;
         height: auto !important;
+        width: 100% !important;
     }
 
     /* Make modal content full-width */
@@ -273,43 +274,49 @@ $denom_labels = array(
         display: none !important;
     }
 
-    /* Scale content to fit on one page */
+    /* Scale content to fit on one page - more aggressive scaling */
     #modal-content {
-        padding: 5px !important;
-        font-size: 11px !important;
-        transform: scale(0.85);
+        padding: 3px !important;
+        font-size: 9px !important;
+        transform: scale(0.75);
         transform-origin: top left;
-        width: 118%;
+        width: 133%;
+        max-width: 133%;
     }
 
     #modal-content h3 {
-        font-size: 13px !important;
-        margin: 8px 0 5px 0 !important;
+        font-size: 11px !important;
+        margin: 5px 0 3px 0 !important;
     }
 
     #modal-content p {
-        margin: 3px 0 !important;
-        font-size: 11px !important;
+        margin: 2px 0 !important;
+        font-size: 9px !important;
     }
 
     /* Prevent page breaks */
     #modal-content,
-    #modal-content > * {
+    #modal-content > *,
+    #modal-content table {
         page-break-inside: avoid !important;
         page-break-after: avoid !important;
+        page-break-before: avoid !important;
     }
 
     /* Compact table styling */
     table.widefat {
         page-break-inside: avoid !important;
-        font-size: 10px !important;
-        margin: 5px 0 !important;
+        font-size: 8px !important;
+        margin: 3px 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
     }
 
     table.widefat th,
     table.widefat td {
-        padding: 3px 5px !important;
-        font-size: 10px !important;
+        padding: 2px 3px !important;
+        font-size: 8px !important;
+        white-space: nowrap;
     }
 
     /* Make sure colors print */
