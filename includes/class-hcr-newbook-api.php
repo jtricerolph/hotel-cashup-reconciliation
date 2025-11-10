@@ -485,6 +485,12 @@ class HCR_Newbook_API {
             // Determine if this is a voided transaction for special formatting
             $is_voided = ($item_type === 'payments_voided' || $item_type === 'refunds_voided');
 
+            // Add -void suffix to payment type for voided transactions
+            $display_payment_type = $payment_type;
+            if ($is_voided) {
+                $display_payment_type = $payment_type . ' -void';
+            }
+
             // Categorize payment type
             $category = $this->categorize_payment_type($payment_type);
 
@@ -493,7 +499,7 @@ class HCR_Newbook_API {
 
             $transaction_item = array(
                 'time' => $time,
-                'payment_type' => $payment_type,
+                'payment_type' => $display_payment_type,
                 'details' => '',
                 'amount' => $amount,
                 'item_type' => $item_type,
