@@ -1049,13 +1049,29 @@ jQuery(document).ready(function($) {
                 // For cash and BACS, total variance is the same as individual variance
                 row += '<td class="' + varianceClass + '" style="' + varianceBgStyle + '">' + varianceSign + '£' + item.variance.toFixed(2) + '</td>';
             } else {
-                // For card rows, show total variance only on the first card row with rowspan
+                // For card rows, show total variance only on the first card row with rowspan and breakdown
                 if (cardRowsRendered === 0) {
                     var totalVarianceClass = getVarianceClass(cardTotalVariance);
                     var totalVarianceSign = cardTotalVariance >= 0 ? '+' : '';
                     var totalVarianceBgStyle = getVarianceBgStyle(cardTotalVariance);
-                    row += '<td rowspan="' + cardRows.length + '" class="' + totalVarianceClass + '" style="' + totalVarianceBgStyle + ' vertical-align: middle; text-align: center; font-size: 1.1em;">' +
-                           totalVarianceSign + '£' + cardTotalVariance.toFixed(2) + '</td>';
+
+                    // Build breakdown of card variances
+                    var breakdownHtml = '<div style="margin-bottom: 3px; font-size: 1.1em;">' + totalVarianceSign + '£' + cardTotalVariance.toFixed(2) + '</div>';
+                    breakdownHtml += '<div style="font-size: 8px; font-weight: normal; line-height: 1.3;">';
+
+                    cardRows.forEach(function(cardRow) {
+                        if (Math.abs(cardRow.variance) >= 0.01) {
+                            var sign = cardRow.variance >= 0 ? '+' : '';
+                            var arrow = cardRow.variance >= 0 ? '↑' : '↓';
+                            var label = cardRow.category.replace('Visa/Mastercard', 'V/MC');
+                            breakdownHtml += label + ': ' + sign + '£' + Math.abs(cardRow.variance).toFixed(2) + ' ' + arrow + '<br>';
+                        }
+                    });
+
+                    breakdownHtml += '</div>';
+
+                    row += '<td rowspan="' + cardRows.length + '" class="' + totalVarianceClass + '" style="' + totalVarianceBgStyle + ' vertical-align: middle; text-align: center;">' +
+                           breakdownHtml + '</td>';
                 }
                 cardRowsRendered++;
             }
