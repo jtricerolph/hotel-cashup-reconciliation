@@ -67,6 +67,7 @@ class HCR_Core {
         add_action('wp_ajax_hcr_save_cash_up', array($plugin_ajax, 'handle_save_cash_up'));
         add_action('wp_ajax_hcr_load_cash_up', array($plugin_ajax, 'handle_load_cash_up'));
         add_action('wp_ajax_hcr_delete_cash_up', array($plugin_ajax, 'handle_delete_cash_up'));
+        add_action('wp_ajax_hcr_bulk_finalize_cash_ups', array($plugin_ajax, 'handle_bulk_finalize_cash_ups'));
 
         // Photo upload actions
         add_action('wp_ajax_hcr_upload_machine_photo', array($plugin_ajax, 'handle_upload_machine_photo'));

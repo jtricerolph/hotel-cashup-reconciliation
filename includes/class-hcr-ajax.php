@@ -388,6 +388,85 @@ class HCR_Ajax {
     }
 
     /**
+     * Handle bulk finalize cash ups
+     */
+    public function handle_bulk_finalize_cash_ups() {
+        check_ajax_referer('hcr_admin_nonce', 'nonce');
+
+        if (!is_user_logged_in() || !current_user_can('edit_posts')) {
+            wp_send_json_error(array('message' => 'Permission denied.'));
+            return;
+        }
+
+        global $wpdb;
+
+        $cash_up_ids = isset($_POST['cash_up_ids']) ? array_map('intval', $_POST['cash_up_ids']) : array();
+
+        if (empty($cash_up_ids)) {
+            wp_send_json_error(array('message' => 'No cash ups selected.'));
+            return;
+        }
+
+        $success_count = 0;
+        $error_count = 0;
+        $errors = array();
+
+        foreach ($cash_up_ids as $cash_up_id) {
+            // Check if cash up exists and is draft
+            $cash_up = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}hcr_cash_ups WHERE id = %d",
+                $cash_up_id
+            ));
+
+            if (!$cash_up) {
+                $error_count++;
+                $errors[] = "Cash up ID {$cash_up_id} not found.";
+                continue;
+            }
+
+            if ($cash_up->status !== 'draft') {
+                $error_count++;
+                $errors[] = "Cash up for {$cash_up->session_date} is not a draft.";
+                continue;
+            }
+
+            // Update to final status
+            $result = $wpdb->update(
+                $wpdb->prefix . 'hcr_cash_ups',
+                array(
+                    'status' => 'final',
+                    'submitted_at' => current_time('mysql')
+                ),
+                array('id' => $cash_up_id),
+                array('%s', '%s'),
+                array('%d')
+            );
+
+            if ($result !== false) {
+                $success_count++;
+            } else {
+                $error_count++;
+                $errors[] = "Failed to finalize cash up for {$cash_up->session_date}.";
+            }
+        }
+
+        // Build response message
+        $message = '';
+        if ($success_count > 0) {
+            $message .= $success_count . ' cash up' . ($success_count !== 1 ? 's' : '') . ' saved as final. ';
+        }
+        if ($error_count > 0) {
+            $message .= $error_count . ' failed. ';
+        }
+
+        if ($error_count > 0 && $success_count === 0) {
+            wp_send_json_error(array('message' => trim($message), 'errors' => $errors));
+        } else {
+            wp_send_json_success(array('message' => trim($message), 'success_count' => $success_count, 'error_count' => $error_count));
+        }
+    }
+
+    /**
      * Handle fetch Newbook payments
      */
     public function handle_fetch_newbook_payments() {

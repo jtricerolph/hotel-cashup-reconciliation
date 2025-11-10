@@ -87,10 +87,19 @@ if (!empty($query_params)) {
         </form>
     </div>
 
+    <!-- Bulk Actions Bar -->
+    <div id="hcr-bulk-actions-bar" style="background: #fff; padding: 10px 15px; margin-bottom: 10px; border: 1px solid #ccc; display: none;">
+        <button type="button" id="hcr-bulk-finalize-btn" class="button button-primary">
+            <span class="dashicons dashicons-yes" style="vertical-align: middle; margin-top: 3px;"></span> Save Selected as Final
+        </button>
+        <span id="hcr-selection-count" style="margin-left: 10px; font-weight: 600;"></span>
+    </div>
+
     <!-- Results Table -->
     <table class="wp-list-table widefat fixed striped">
         <thead>
             <tr>
+                <th style="width: 2.5em;"><input type="checkbox" id="hcr-select-all-drafts"></th>
                 <th>Date</th>
                 <th>Status</th>
                 <th>Cash Total</th>
@@ -103,11 +112,16 @@ if (!empty($query_params)) {
         <tbody>
             <?php if (empty($cash_ups)): ?>
                 <tr>
-                    <td colspan="7">No cash ups found.</td>
+                    <td colspan="8">No cash ups found.</td>
                 </tr>
             <?php else: ?>
                 <?php foreach ($cash_ups as $cash_up): ?>
                     <tr>
+                        <td>
+                            <?php if ($cash_up->status === 'draft'): ?>
+                                <input type="checkbox" class="hcr-draft-checkbox" data-id="<?php echo esc_attr($cash_up->id); ?>" data-date="<?php echo esc_attr($cash_up->session_date); ?>">
+                            <?php endif; ?>
+                        </td>
                         <td><?php echo esc_html(date('D, j M Y', strtotime($cash_up->session_date))); ?></td>
                         <td>
                             <span class="hcr-status-badge hcr-status-<?php echo esc_attr($cash_up->status); ?>">
@@ -135,6 +149,79 @@ if (!empty($query_params)) {
 
 <script>
 jQuery(document).ready(function($) {
+    // Update selection count and show/hide bulk actions bar
+    function updateSelectionUI() {
+        var selectedCount = $('.hcr-draft-checkbox:checked').length;
+
+        if (selectedCount > 0) {
+            $('#hcr-bulk-actions-bar').show();
+            $('#hcr-selection-count').text(selectedCount + ' draft' + (selectedCount !== 1 ? 's' : '') + ' selected');
+        } else {
+            $('#hcr-bulk-actions-bar').hide();
+        }
+    }
+
+    // Select all drafts checkbox
+    $('#hcr-select-all-drafts').on('change', function() {
+        $('.hcr-draft-checkbox').prop('checked', $(this).is(':checked'));
+        updateSelectionUI();
+    });
+
+    // Individual checkbox change
+    $(document).on('change', '.hcr-draft-checkbox', function() {
+        // Update "select all" checkbox state
+        var totalDrafts = $('.hcr-draft-checkbox').length;
+        var selectedDrafts = $('.hcr-draft-checkbox:checked').length;
+        $('#hcr-select-all-drafts').prop('checked', totalDrafts > 0 && totalDrafts === selectedDrafts);
+
+        updateSelectionUI();
+    });
+
+    // Bulk finalize button
+    $('#hcr-bulk-finalize-btn').on('click', function() {
+        var selectedIds = [];
+        $('.hcr-draft-checkbox:checked').each(function() {
+            selectedIds.push($(this).data('id'));
+        });
+
+        if (selectedIds.length === 0) {
+            alert('Please select at least one draft to finalize.');
+            return;
+        }
+
+        var confirmMsg = 'Are you sure you want to save ' + selectedIds.length + ' draft' + (selectedIds.length !== 1 ? 's' : '') + ' as final?\n\nThis action cannot be undone.';
+        if (!confirm(confirmMsg)) {
+            return;
+        }
+
+        var $btn = $(this);
+        $btn.prop('disabled', true).text('Processing...');
+
+        $.ajax({
+            url: ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'hcr_bulk_finalize_cash_ups',
+                nonce: '<?php echo wp_create_nonce('hcr_admin_nonce'); ?>',
+                cash_up_ids: selectedIds
+            },
+            success: function(response) {
+                if (response.success) {
+                    alert(response.data.message);
+                    location.reload();
+                } else {
+                    alert(response.data.message || 'An error occurred. Please try again.');
+                    $btn.prop('disabled', false).html('<span class="dashicons dashicons-yes" style="vertical-align: middle; margin-top: 3px;"></span> Save Selected as Final');
+                }
+            },
+            error: function() {
+                alert('An error occurred. Please try again.');
+                $btn.prop('disabled', false).html('<span class="dashicons dashicons-yes" style="vertical-align: middle; margin-top: 3px;"></span> Save Selected as Final');
+            }
+        });
+    });
+
+    // Delete cash up
     $('.hcr-delete-cash-up').on('click', function() {
         if (!confirm('Are you sure you want to delete this cash up?')) {
             return;

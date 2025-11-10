@@ -324,8 +324,7 @@ $preselected_date = isset($atts['date']) ? $atts['date'] : date('Y-m-d');
 
         <!-- Submit Buttons -->
         <div class="hcr-form-actions">
-            <button type="submit" id="hcr-public-save-draft" class="hcr-button-secondary">Save as Draft</button>
-            <button type="submit" id="hcr-public-submit-final" class="hcr-button-primary">Submit Final</button>
+            <button type="submit" id="hcr-public-save-draft" class="hcr-button-primary">Save as Draft</button>
         </div>
     </form>
 </div>
