@@ -177,10 +177,15 @@ $all_denominations = array_filter($all_denominations, function($denom) {
 
 <!-- View Count Modal -->
 <div id="view-count-modal" style="display: none; position: fixed; z-index: 100000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
-    <div style="background-color: #fff; margin: 50px auto; padding: 20px; width: 90%; max-width: 800px; max-height: 80%; overflow-y: auto; border-radius: 5px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <div id="modal-inner" style="background-color: #fff; margin: 50px auto; padding: 20px; width: 90%; max-width: 800px; max-height: 80%; overflow-y: auto; border-radius: 5px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;" class="no-print">
             <h2>Count Details</h2>
-            <button type="button" class="button" id="close-modal-btn">&times; Close</button>
+            <div>
+                <button type="button" class="button button-primary" id="print-modal-btn" style="margin-right: 10px;">
+                    <span class="dashicons dashicons-printer" style="vertical-align: middle; margin-right: 5px;"></span>Print
+                </button>
+                <button type="button" class="button" id="close-modal-btn">&times; Close</button>
+            </div>
         </div>
         <div id="modal-content">
             <!-- Content will be loaded here -->
@@ -225,6 +230,77 @@ $all_denominations = array_filter($all_denominations, function($denom) {
 
 .widefat td:hover {
     box-shadow: inset 0 0 0 1px #4a90e2;
+}
+
+/* Print styles */
+@media print {
+    /* Hide everything except the modal content */
+    body * {
+        visibility: hidden;
+    }
+
+    #view-count-modal,
+    #view-count-modal * {
+        visibility: visible;
+    }
+
+    /* Hide modal overlay background */
+    #view-count-modal {
+        position: static !important;
+        background-color: transparent !important;
+        height: auto !important;
+    }
+
+    /* Make modal content full-width and remove constraints */
+    #modal-inner {
+        margin: 0 !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        max-height: none !important;
+        overflow: visible !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+    }
+
+    /* Hide buttons and non-printable elements */
+    .no-print {
+        display: none !important;
+    }
+
+    /* Ensure tables print properly */
+    table {
+        page-break-inside: auto;
+    }
+
+    tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+
+    /* Ensure proper spacing for print */
+    #modal-content {
+        padding: 20px;
+    }
+
+    /* Make sure colors print */
+    .variance-positive {
+        color: green !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .variance-negative {
+        color: red !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .variance-balanced {
+        color: gray !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 }
 </style>
 
@@ -676,6 +752,11 @@ jQuery(document).ready(function($) {
             alert('Server error. Please try again.');
             $button.text('Load Receipts').prop('disabled', false);
         });
+    });
+
+    // Print modal
+    $('#print-modal-btn').on('click', function() {
+        window.print();
     });
 
     // Close modal
