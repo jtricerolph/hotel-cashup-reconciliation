@@ -109,9 +109,7 @@ class HCR_Newbook_API {
 
             // Skip balance transfers (system-generated transactions that always balance out)
             $payment_type = $transaction['payment_type'] ?? '';
-            $payment_type_lower = strtolower($payment_type);
-            if (strpos($payment_type_lower, 'balance transfer') !== false ||
-                strpos($payment_type_lower, 'account transfer') !== false) {
+            if ($payment_type === 'balance_transfer') {
                 continue;
             }
 
@@ -186,9 +184,7 @@ class HCR_Newbook_API {
 
             // Skip balance transfers (system-generated transactions that always balance out)
             $payment_type = $transaction['payment_type'] ?? '';
-            $payment_type_lower = strtolower($payment_type);
-            if (strpos($payment_type_lower, 'balance transfer') !== false ||
-                strpos($payment_type_lower, 'account transfer') !== false) {
+            if ($payment_type === 'balance_transfer') {
                 continue;
             }
 
@@ -404,9 +400,7 @@ class HCR_Newbook_API {
                 $payment_type = trim($matches[2]);
 
                 // Skip balance transfers (system-generated transactions that always balance out)
-                $payment_type_lower = strtolower($payment_type);
-                if (strpos($payment_type_lower, 'balance transfer') !== false ||
-                    strpos($payment_type_lower, 'account transfer') !== false) {
+                if ($payment_type === 'balance_transfer') {
                     continue;
                 }
 
@@ -506,9 +500,7 @@ class HCR_Newbook_API {
             $account_name = $transaction['account_for_name'] ?? '';
 
             // Skip balance transfers (system-generated transactions that always balance out)
-            $payment_type_lower = strtolower($payment_type);
-            if (strpos($payment_type_lower, 'balance transfer') !== false ||
-                strpos($payment_type_lower, 'account transfer') !== false) {
+            if ($payment_type === 'balance_transfer') {
                 continue;
             }
 
