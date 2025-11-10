@@ -290,6 +290,7 @@ $auto_load = isset($_GET['date']) ? 'true' : 'false';
                         <th>Banked</th>
                         <th>Reported</th>
                         <th>Variance</th>
+                        <th>Total Variance</th>
                     </tr>
                 </thead>
                 <tbody id="hcr-reconciliation-body">

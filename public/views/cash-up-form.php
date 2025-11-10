@@ -248,6 +248,7 @@ $preselected_date = isset($atts['date']) ? $atts['date'] : date('Y-m-d');
                         <th>Banked</th>
                         <th>Reported</th>
                         <th>Variance</th>
+                        <th>Total Variance</th>
                     </tr>
                 </thead>
                 <tbody id="hcr-reconciliation-body">

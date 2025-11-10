@@ -1011,6 +1011,28 @@ jQuery(document).ready(function($) {
             });
         }
 
+        // Group data by type for total variance calculation
+        var cashRows = [];
+        var cardRows = [];
+        var bacsRows = [];
+
+        dataArray.forEach(function(item) {
+            if (item.category === 'Cash') {
+                cashRows.push(item);
+            } else if (item.category === 'BACS/Bank Transfer') {
+                bacsRows.push(item);
+            } else {
+                // All card types (PDQ and Gateway, Visa/MC and Amex)
+                cardRows.push(item);
+            }
+        });
+
+        // Calculate total variances
+        var cardTotalVariance = cardRows.reduce(function(sum, item) { return sum + item.variance; }, 0);
+
+        // Render rows with total variance column
+        var cardRowsRendered = 0;
+
         dataArray.forEach(function(item) {
             var varianceClass = getVarianceClass(item.variance);
             var varianceSign = item.variance >= 0 ? '+' : '';
@@ -1020,9 +1042,25 @@ jQuery(document).ready(function($) {
                 '<td>' + item.category + '</td>' +
                 '<td>£' + item.banked.toFixed(2) + '</td>' +
                 '<td>£' + item.reported.toFixed(2) + '</td>' +
-                '<td class="' + varianceClass + '" style="' + varianceBgStyle + '">' + varianceSign + '£' + item.variance.toFixed(2) + '</td>' +
-                '</tr>';
+                '<td class="' + varianceClass + '" style="' + varianceBgStyle + '">' + varianceSign + '£' + item.variance.toFixed(2) + '</td>';
 
+            // Total Variance column
+            if (item.category === 'Cash' || item.category === 'BACS/Bank Transfer') {
+                // For cash and BACS, total variance is the same as individual variance
+                row += '<td class="' + varianceClass + '" style="' + varianceBgStyle + '">' + varianceSign + '£' + item.variance.toFixed(2) + '</td>';
+            } else {
+                // For card rows, show total variance only on the first card row with rowspan
+                if (cardRowsRendered === 0) {
+                    var totalVarianceClass = getVarianceClass(cardTotalVariance);
+                    var totalVarianceSign = cardTotalVariance >= 0 ? '+' : '';
+                    var totalVarianceBgStyle = getVarianceBgStyle(cardTotalVariance);
+                    row += '<td rowspan="' + cardRows.length + '" class="' + totalVarianceClass + '" style="' + totalVarianceBgStyle + ' vertical-align: middle; text-align: center; font-size: 1.1em;">' +
+                           totalVarianceSign + '£' + cardTotalVariance.toFixed(2) + '</td>';
+                }
+                cardRowsRendered++;
+            }
+
+            row += '</tr>';
             $tbody.append(row);
         });
 
