@@ -465,6 +465,31 @@ textarea {
     transition: transform 0.2s ease;
 }
 
+/* Transaction breakdown tables container - responsive layout */
+#hcr-breakdown-content > div {
+    display: flex;
+    gap: 20px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+#hcr-breakdown-content > div > div {
+    flex: 1;
+    min-width: 300px;
+}
+
+/* On tablets and smaller, stack tables vertically */
+@media screen and (max-width: 1024px) {
+    #hcr-breakdown-content > div {
+        flex-direction: column;
+    }
+
+    #hcr-breakdown-content > div > div {
+        flex: none;
+        width: 100%;
+    }
+}
+
 .hcr-breakdown-subheading {
     background-color: #f0f0f1;
 }
