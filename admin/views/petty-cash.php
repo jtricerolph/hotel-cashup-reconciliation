@@ -232,105 +232,7 @@ $all_denominations = array_filter($all_denominations, function($denom) {
     box-shadow: inset 0 0 0 1px #4a90e2;
 }
 
-/* Print styles */
-@page {
-    size: A4;
-    margin: 10mm;
-}
-
-@media print {
-    /* Hide everything except the modal content */
-    body * {
-        visibility: hidden;
-    }
-
-    #view-count-modal,
-    #view-count-modal * {
-        visibility: visible;
-    }
-
-    /* Hide modal overlay background */
-    #view-count-modal {
-        position: static !important;
-        background-color: transparent !important;
-        height: auto !important;
-    }
-
-    /* Make modal content full-width and remove constraints */
-    #modal-inner {
-        margin: 0 !important;
-        padding: 0 !important;
-        max-width: 100% !important;
-        width: 100% !important;
-        max-height: none !important;
-        overflow: visible !important;
-        box-shadow: none !important;
-        border-radius: 0 !important;
-    }
-
-    /* Hide buttons and non-printable elements */
-    .no-print {
-        display: none !important;
-    }
-
-    /* Scale content to fit on one page */
-    #modal-content {
-        padding: 5px !important;
-        font-size: 11px !important;
-        transform: scale(0.85);
-        transform-origin: top left;
-        width: 118%;
-    }
-
-    #modal-content h3 {
-        font-size: 13px !important;
-        margin: 8px 0 5px 0 !important;
-    }
-
-    #modal-content p {
-        margin: 3px 0 !important;
-        font-size: 11px !important;
-    }
-
-    /* Prevent page breaks */
-    #modal-content,
-    #modal-content > * {
-        page-break-inside: avoid !important;
-        page-break-after: avoid !important;
-    }
-
-    /* Compact table styling */
-    table.widefat {
-        page-break-inside: avoid !important;
-        font-size: 10px !important;
-        margin: 5px 0 !important;
-    }
-
-    table.widefat th,
-    table.widefat td {
-        padding: 3px 5px !important;
-        font-size: 10px !important;
-    }
-
-    /* Make sure colors print */
-    .variance-positive {
-        color: green !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-
-    .variance-negative {
-        color: red !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-
-    .variance-balanced {
-        color: gray !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-}
+/* Print styles - not needed since we open a new window for printing */
 </style>
 
 <script>
@@ -785,7 +687,38 @@ jQuery(document).ready(function($) {
 
     // Print modal
     $('#print-modal-btn').on('click', function() {
-        window.print();
+        // Get the modal content
+        var content = $('#modal-content').html();
+
+        // Open a new window for printing
+        var printWindow = window.open('', '_blank', 'width=800,height=600');
+
+        // Write the HTML document
+        printWindow.document.write('<!DOCTYPE html>');
+        printWindow.document.write('<html><head><title>Print Petty Cash Count</title>');
+        printWindow.document.write('<style>');
+        printWindow.document.write('body { font-family: Arial, sans-serif; font-size: 10px; margin: 10mm; }');
+        printWindow.document.write('h3 { font-size: 12px; margin: 8px 0 5px 0; }');
+        printWindow.document.write('p { margin: 3px 0; font-size: 10px; }');
+        printWindow.document.write('table.widefat { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 9px; }');
+        printWindow.document.write('table.widefat th, table.widefat td { border: 1px solid #000; padding: 4px 6px; text-align: left; }');
+        printWindow.document.write('table.widefat th { background: #f0f0f0; font-weight: bold; }');
+        printWindow.document.write('table.widefat td:nth-child(2), table.widefat td:nth-child(3) { text-align: right; }');
+        printWindow.document.write('.variance-positive { color: green; }');
+        printWindow.document.write('.variance-negative { color: red; }');
+        printWindow.document.write('.variance-balanced { color: gray; }');
+        printWindow.document.write('@media print { body { margin: 8mm; } }');
+        printWindow.document.write('</style></head><body>');
+        printWindow.document.write(content);
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+
+        // Wait for content to load, then print
+        printWindow.onload = function() {
+            printWindow.print();
+            // Optional: Close window after printing (commented out to let user review)
+            // printWindow.onafterprint = function() { printWindow.close(); };
+        };
     });
 
     // Close modal

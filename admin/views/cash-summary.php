@@ -78,7 +78,7 @@ rsort($all_denominations);
             </table>
 
             <div style="margin-top: 20px;">
-                <button type="button" class="button" onclick="window.print();">Print Summary</button>
+                <button type="button" class="button" id="print-summary-btn">Print Summary</button>
                 <button type="button" id="transfer-to-safe-btn" class="button button-primary" style="margin-left: 10px;">Transfer to Safe</button>
             </div>
         </div>
@@ -119,29 +119,7 @@ rsort($all_denominations);
     box-shadow: inset 0 0 0 1px #4a90e2;
 }
 
-@media print {
-    .wrap h1,
-    #hcr-cash-summary-form,
-    .button {
-        display: none;
-    }
-
-    #summary-results {
-        display: block !important;
-    }
-
-    table {
-        border-collapse: collapse;
-    }
-
-    table, th, td {
-        border: 1px solid #000;
-    }
-
-    th, td {
-        padding: 8px;
-    }
-}
+/* Print styles - not needed since we open a new window for printing */
 </style>
 
 <script>
@@ -245,6 +223,43 @@ jQuery(document).ready(function($) {
         }).fail(function() {
             $('#load-status').html('<span style="color: red;">✗ Server error. Please try again.</span>');
         });
+    });
+
+    // Print Summary button
+    $('#print-summary-btn').on('click', function() {
+        // Get the summary period and table content
+        var period = $('#summary-period').html();
+        var tableHtml = $('#summary-table')[0].outerHTML;
+
+        // Open a new window for printing
+        var printWindow = window.open('', '_blank', 'width=800,height=600');
+
+        // Write the HTML document
+        printWindow.document.write('<!DOCTYPE html>');
+        printWindow.document.write('<html><head><title>Print Cash Summary</title>');
+        printWindow.document.write('<style>');
+        printWindow.document.write('body { font-family: Arial, sans-serif; font-size: 11px; margin: 10mm; }');
+        printWindow.document.write('h1 { font-size: 16px; margin-bottom: 10px; }');
+        printWindow.document.write('p { margin: 5px 0; font-size: 11px; }');
+        printWindow.document.write('table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 10px; }');
+        printWindow.document.write('table th, table td { border: 1px solid #000; padding: 6px 8px; text-align: left; }');
+        printWindow.document.write('table th { background: #f0f0f0; font-weight: bold; }');
+        printWindow.document.write('table td:nth-child(2), table td:nth-child(3) { text-align: right; }');
+        printWindow.document.write('tfoot { background: #f9f9f9; font-weight: bold; }');
+        printWindow.document.write('@media print { body { margin: 8mm; } }');
+        printWindow.document.write('</style></head><body>');
+        printWindow.document.write('<h1>Cash Count Summary</h1>');
+        printWindow.document.write('<p>' + period + '</p>');
+        printWindow.document.write(tableHtml);
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+
+        // Wait for content to load, then print
+        printWindow.onload = function() {
+            printWindow.print();
+            // Optional: Close window after printing (commented out to let user review)
+            // printWindow.onafterprint = function() { printWindow.close(); };
+        };
     });
 
     // Transfer to Safe button

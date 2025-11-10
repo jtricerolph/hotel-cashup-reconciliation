@@ -170,7 +170,12 @@ rsort($all_denominations);
     <div id="modal-inner" style="background-color: #fff; margin: 50px auto; padding: 20px; width: 90%; max-width: 800px; max-height: 80%; overflow-y: auto; border-radius: 5px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;" class="no-print">
             <h2>Count Details</h2>
-            <button type="button" class="button" id="close-modal-btn">&times; Close</button>
+            <div>
+                <button type="button" class="button button-primary" id="print-modal-btn" style="margin-right: 10px;">
+                    <span class="dashicons dashicons-printer" style="vertical-align: middle; margin-right: 5px;"></span>Print
+                </button>
+                <button type="button" class="button" id="close-modal-btn">&times; Close</button>
+            </div>
         </div>
         <div id="modal-content">
             <!-- Content will be loaded here -->
@@ -198,102 +203,7 @@ rsort($all_denominations);
     box-shadow: inset 0 0 0 1px #4a90e2;
 }
 
-@page {
-    size: A4;
-    margin: 10mm;
-}
-
-@media print {
-    /* Hide everything except modal content */
-    body * {
-        visibility: hidden;
-    }
-
-    #view-count-modal,
-    #view-count-modal * {
-        visibility: visible;
-    }
-
-    /* Hide modal overlay background */
-    #view-count-modal {
-        position: static !important;
-        background-color: transparent !important;
-        height: auto !important;
-    }
-
-    /* Make modal content full-width and remove constraints */
-    #modal-inner {
-        margin: 0 !important;
-        padding: 0 !important;
-        max-width: 100% !important;
-        width: 100% !important;
-        max-height: none !important;
-        overflow: visible !important;
-        box-shadow: none !important;
-        border-radius: 0 !important;
-    }
-
-    /* Hide buttons and non-printable elements */
-    .no-print {
-        display: none !important;
-    }
-
-    /* Scale content to fit on one page */
-    #modal-content {
-        padding: 5px !important;
-        font-size: 11px !important;
-        transform: scale(0.85);
-        transform-origin: top left;
-        width: 118%;
-    }
-
-    #modal-content h3 {
-        font-size: 13px !important;
-        margin: 8px 0 5px 0 !important;
-    }
-
-    #modal-content p {
-        margin: 3px 0 !important;
-        font-size: 11px !important;
-    }
-
-    /* Prevent page breaks */
-    #modal-content,
-    #modal-content > * {
-        page-break-inside: avoid !important;
-        page-break-after: avoid !important;
-    }
-
-    /* Compact table styling */
-    table.widefat,
-    .modal-denom-table {
-        page-break-inside: avoid !important;
-        font-size: 10px !important;
-        margin: 5px 0 !important;
-    }
-
-    table.widefat th,
-    table.widefat td,
-    .modal-denom-table th,
-    .modal-denom-table td {
-        padding: 3px 5px !important;
-        font-size: 10px !important;
-        border: 1px solid #000 !important;
-    }
-
-    .modal-denom-table {
-        border-collapse: collapse;
-        width: auto !important;
-        max-width: 500px;
-    }
-
-    .modal-denom-table thead th {
-        background: #f0f0f0 !important;
-        font-weight: bold;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-}
+/* Print styles - not needed since we open a new window for printing */
 </style>
 
 <script>
@@ -712,6 +622,40 @@ jQuery(document).ready(function($) {
             alert('Server error. Please try again.');
             $button.text('Preload Count').prop('disabled', false);
         });
+    });
+
+    // Print modal
+    $('#print-modal-btn').on('click', function() {
+        // Get the modal content
+        var content = $('#modal-content').html();
+
+        // Open a new window for printing
+        var printWindow = window.open('', '_blank', 'width=800,height=600');
+
+        // Write the HTML document
+        printWindow.document.write('<!DOCTYPE html>');
+        printWindow.document.write('<html><head><title>Print Safe Cash Count</title>');
+        printWindow.document.write('<style>');
+        printWindow.document.write('body { font-family: Arial, sans-serif; font-size: 10px; margin: 10mm; }');
+        printWindow.document.write('h3 { font-size: 12px; margin: 8px 0 5px 0; }');
+        printWindow.document.write('p { margin: 3px 0; font-size: 10px; }');
+        printWindow.document.write('table.widefat, table.modal-denom-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 9px; }');
+        printWindow.document.write('table.widefat th, table.widefat td, table.modal-denom-table th, table.modal-denom-table td { border: 1px solid #000; padding: 4px 6px; text-align: left; }');
+        printWindow.document.write('table.widefat th, table.modal-denom-table th { background: #f0f0f0; font-weight: bold; }');
+        printWindow.document.write('table.widefat td:nth-child(2), table.widefat td:nth-child(3) { text-align: right; }');
+        printWindow.document.write('table.modal-denom-table td:nth-child(2), table.modal-denom-table td:nth-child(3) { text-align: right; }');
+        printWindow.document.write('@media print { body { margin: 8mm; } }');
+        printWindow.document.write('</style></head><body>');
+        printWindow.document.write(content);
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+
+        // Wait for content to load, then print
+        printWindow.onload = function() {
+            printWindow.print();
+            // Optional: Close window after printing (commented out to let user review)
+            // printWindow.onafterprint = function() { printWindow.close(); };
+        };
     });
 
     // Close modal
