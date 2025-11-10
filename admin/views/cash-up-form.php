@@ -49,13 +49,10 @@ $auto_load = isset($_GET['date']) ? 'true' : 'false';
         <input type="hidden" name="nonce" value="<?php echo wp_create_nonce('hcr_admin_nonce'); ?>">
         <input type="hidden" id="hcr-auto-load" value="<?php echo esc_attr($auto_load); ?>">
 
-        <!-- Cash Counting Section -->
-        <h2 id="hcr-section-counting" class="hcr-section-header">Cash Counting</h2>
-
         <div class="hcr-counting-grid">
             <!-- Till Float Count Section -->
             <div class="hcr-counting-section">
-                <h3>Till Float Count</h3>
+                <h2 id="hcr-section-till-float" class="hcr-section-header">Till Float Count</h2>
                 <p>Count the float/change in the till drawer.</p>
 
                 <table class="wp-list-table widefat fixed striped hcr-denomination-table">
@@ -110,12 +107,12 @@ $auto_load = isset($_GET['date']) ? 'true' : 'false';
                         </tr>
                     </tfoot>
                 </table>
-                <button type="button" class="hcr-next-section-btn" data-target="hcr-section-card-machines">NEXT ›</button>
+                <button type="button" class="hcr-next-section-btn" data-target="hcr-section-takings">NEXT ›</button>
             </div>
 
             <!-- Cash Takings Banked Section -->
             <div class="hcr-counting-section">
-                <h3>Cash Takings Banked</h3>
+                <h2 id="hcr-section-takings" class="hcr-section-header">Cash Takings Banked</h2>
                 <p>Count the cash takings to be banked (excluding float).</p>
 
                 <table class="wp-list-table widefat fixed striped hcr-denomination-table">
