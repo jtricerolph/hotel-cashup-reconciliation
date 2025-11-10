@@ -167,7 +167,7 @@ rsort($all_denominations);
 
 <!-- View Count Modal -->
 <div id="view-count-modal" style="display: none; position: fixed; z-index: 100000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
-    <div style="background-color: #fff; margin: 50px auto; padding: 20px; width: 90%; max-width: 800px; max-height: 80%; overflow-y: auto; border-radius: 5px;">
+    <div id="modal-inner" style="background-color: #fff; margin: 50px auto; padding: 20px; width: 90%; max-width: 800px; max-height: 80%; overflow-y: auto; border-radius: 5px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;" class="no-print">
             <h2>Count Details</h2>
             <button type="button" class="button" id="close-modal-btn">&times; Close</button>
@@ -204,27 +204,48 @@ rsort($all_denominations);
         visibility: hidden;
     }
 
-    #modal-print-content,
-    #modal-print-content * {
+    #view-count-modal,
+    #view-count-modal * {
         visibility: visible;
     }
 
-    #modal-print-content {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        padding: 20px;
-    }
-
-    /* Hide modal overlay and close button */
+    /* Hide modal overlay background */
     #view-count-modal {
         position: static !important;
-        background: none !important;
+        background-color: transparent !important;
+        height: auto !important;
     }
 
+    /* Make modal content full-width and remove constraints */
+    #modal-inner {
+        margin: 0 !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        max-height: none !important;
+        overflow: visible !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+    }
+
+    /* Hide buttons and non-printable elements */
     .no-print {
         display: none !important;
+    }
+
+    /* Ensure tables print properly */
+    table {
+        page-break-inside: auto;
+    }
+
+    tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+
+    /* Ensure proper spacing for print */
+    #modal-content {
+        padding: 20px;
     }
 
     /* Style table for print */
@@ -243,6 +264,8 @@ rsort($all_denominations);
     .modal-denom-table thead th {
         background: #f0f0f0 !important;
         font-weight: bold;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
 }
 </style>
@@ -531,7 +554,7 @@ jQuery(document).ready(function($) {
                 var isBank = count.notes && count.notes.indexOf('[BANKED]') === 0;
                 var displayNotes = isBank ? count.notes.replace('[BANKED] ', '') : count.notes;
 
-                var html = '<div id="modal-print-content">';
+                var html = '<div>';
                 html += '<p><strong>Date/Time:</strong> ' + count.count_date + '</p>';
                 html += '<p><strong>Created By:</strong> ' + (count.created_by_name || 'Unknown') + '</p>';
 
