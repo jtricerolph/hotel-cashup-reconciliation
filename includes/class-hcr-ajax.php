@@ -1504,7 +1504,7 @@ class HCR_Ajax {
         $total_count = $wpdb->get_var("SELECT COUNT(*) FROM $float_counts_table WHERE count_type = 'petty_cash'");
         $has_more = ($offset + count($counts)) < $total_count;
 
-        wp_send_json_success(array('counts' => $counts, 'has_more' => $has_more));
+        wp_send_json_success(array('counts' => $counts, 'has_more' => $has_more, 'total_count' => $total_count));
     }
 
     /**
@@ -1660,7 +1660,7 @@ class HCR_Ajax {
         $total_count = $wpdb->get_var("SELECT COUNT(*) FROM $float_counts_table WHERE count_type = 'change_tin'");
         $has_more = ($offset + count($counts)) < $total_count;
 
-        wp_send_json_success(array('counts' => $counts, 'has_more' => $has_more));
+        wp_send_json_success(array('counts' => $counts, 'has_more' => $has_more, 'total_count' => $total_count));
     }
 
     /**
@@ -1832,7 +1832,7 @@ class HCR_Ajax {
         $total_count = $wpdb->get_var("SELECT COUNT(*) FROM $float_counts_table WHERE count_type = 'safe_cash'");
         $has_more = ($offset + count($counts)) < $total_count;
 
-        wp_send_json_success(array('counts' => $counts, 'has_more' => $has_more));
+        wp_send_json_success(array('counts' => $counts, 'has_more' => $has_more, 'total_count' => $total_count));
     }
 
     /**

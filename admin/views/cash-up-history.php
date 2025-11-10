@@ -23,30 +23,61 @@ if (!$has_filters) {
     $date_to = isset($_GET['date_to']) ? sanitize_text_field($_GET['date_to']) : '';
 }
 
-// Build query
-$query = "SELECT cu.*, u.display_name as created_by_name
+// Pagination
+$per_page = 20;
+$current_page = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
+$offset = ($current_page - 1) * $per_page;
+
+// Build base query for counting total results
+$count_query = "SELECT COUNT(DISTINCT cu.id)
+                FROM {$wpdb->prefix}hcr_cash_ups cu
+                WHERE 1=1";
+
+// Build query for fetching results with total variance
+$query = "SELECT cu.*,
+                 u.display_name as created_by_name,
+                 COALESCE(SUM(r.variance), 0) as total_variance
           FROM {$wpdb->prefix}hcr_cash_ups cu
           LEFT JOIN {$wpdb->prefix}users u ON cu.created_by = u.ID
+          LEFT JOIN {$wpdb->prefix}hcr_reconciliation r ON cu.id = r.cash_up_id
           WHERE 1=1";
 
 $query_params = array();
 
 if (!empty($status_filter)) {
     $query .= " AND cu.status = %s";
+    $count_query .= " AND cu.status = %s";
     $query_params[] = $status_filter;
 }
 
 if (!empty($date_from)) {
     $query .= " AND cu.session_date >= %s";
+    $count_query .= " AND cu.session_date >= %s";
     $query_params[] = $date_from;
 }
 
 if (!empty($date_to)) {
     $query .= " AND cu.session_date <= %s";
+    $count_query .= " AND cu.session_date <= %s";
     $query_params[] = $date_to;
 }
 
-$query .= " ORDER BY cu.session_date DESC";
+// Get total count for pagination
+if (!empty($query_params)) {
+    $total_items = $wpdb->get_var($wpdb->prepare($count_query, $query_params));
+} else {
+    $total_items = $wpdb->get_var($count_query);
+}
+
+$total_pages = ceil($total_items / $per_page);
+
+// Add GROUP BY, ORDER BY, and LIMIT to main query
+$query .= " GROUP BY cu.id
+            ORDER BY cu.session_date DESC
+            LIMIT %d OFFSET %d";
+
+$query_params[] = $per_page;
+$query_params[] = $offset;
 
 if (!empty($query_params)) {
     $cash_ups = $wpdb->get_results($wpdb->prepare($query, $query_params));
@@ -103,6 +134,7 @@ if (!empty($query_params)) {
                 <th>Date</th>
                 <th>Status</th>
                 <th>Cash Total</th>
+                <th>Total Variance</th>
                 <th>Created By</th>
                 <th>Created At</th>
                 <th>Submitted At</th>
@@ -112,10 +144,22 @@ if (!empty($query_params)) {
         <tbody>
             <?php if (empty($cash_ups)): ?>
                 <tr>
-                    <td colspan="8">No cash ups found.</td>
+                    <td colspan="9">No cash ups found.</td>
                 </tr>
             <?php else: ?>
                 <?php foreach ($cash_ups as $cash_up): ?>
+                    <?php
+                        $variance = floatval($cash_up->total_variance);
+                        $variance_class = '';
+                        if ($variance > 0) {
+                            $variance_class = 'hcr-variance-positive';
+                        } elseif ($variance < 0) {
+                            $variance_class = 'hcr-variance-negative';
+                        } else {
+                            $variance_class = 'hcr-variance-zero';
+                        }
+                        $variance_sign = $variance >= 0 ? '+' : '';
+                    ?>
                     <tr>
                         <td>
                             <?php if ($cash_up->status === 'draft'): ?>
@@ -129,6 +173,9 @@ if (!empty($query_params)) {
                             </span>
                         </td>
                         <td>£<?php echo number_format($cash_up->total_cash_counted, 2); ?></td>
+                        <td class="<?php echo esc_attr($variance_class); ?>" style="font-weight: 600;">
+                            <?php echo $variance_sign; ?>£<?php echo number_format(abs($variance), 2); ?>
+                        </td>
                         <td><?php echo esc_html($cash_up->created_by_name); ?></td>
                         <td><?php echo esc_html(date('d/m/Y H:i', strtotime($cash_up->created_at))); ?></td>
                         <td><?php echo $cash_up->submitted_at ? esc_html(date('d/m/Y H:i', strtotime($cash_up->submitted_at))) : '-'; ?></td>
@@ -145,6 +192,29 @@ if (!empty($query_params)) {
             <?php endif; ?>
         </tbody>
     </table>
+
+    <!-- Pagination -->
+    <?php if ($total_pages > 1): ?>
+        <div class="tablenav bottom">
+            <div class="tablenav-pages">
+                <span class="displaying-num"><?php echo number_format_i18n($total_items); ?> items</span>
+                <?php
+                    $page_links = paginate_links(array(
+                        'base' => add_query_arg('paged', '%#%'),
+                        'format' => '',
+                        'prev_text' => '&laquo;',
+                        'next_text' => '&raquo;',
+                        'total' => $total_pages,
+                        'current' => $current_page,
+                        'type' => 'plain'
+                    ));
+                    if ($page_links) {
+                        echo '<span class="pagination-links">' . $page_links . '</span>';
+                    }
+                ?>
+            </div>
+        </div>
+    <?php endif; ?>
 </div>
 
 <script>

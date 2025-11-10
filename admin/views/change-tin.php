@@ -164,9 +164,7 @@ $denom_labels = array(
             </tbody>
         </table>
 
-        <div style="text-align: center; margin-top: 15px;">
-            <button type="button" id="load-more-btn" class="button" style="display: none;">Load More (10)</button>
-        </div>
+        <div id="history-pagination" style="margin-top: 15px;"></div>
     </div>
 </div>
 
@@ -247,8 +245,9 @@ $denom_labels = array(
 <script>
 jQuery(document).ready(function($) {
     var totalTarget = <?php echo $total_target; ?>;
-    var loadedRecordsCount = 0;
-    var recordsPerPage = 10;
+    var recordsPerPage = 20;
+    var currentPage = 1;
+    var totalCount = 0;
 
     // Calculate totals and top-ups
     function calculateTotals() {
@@ -366,7 +365,7 @@ jQuery(document).ready(function($) {
                 calculateTotals();
 
                 // Reload history
-                loadHistory(false);
+                loadHistory(1);
 
                 setTimeout(function() {
                     $('#save-status').html('');
@@ -380,12 +379,15 @@ jQuery(document).ready(function($) {
     });
 
     // Load history
-    function loadHistory(append) {
-        append = append || false;
+    function loadHistory(page) {
+        page = page || 1;
+        currentPage = page;
+
+        var offset = (page - 1) * recordsPerPage;
 
         var data = {
             action: 'hcr_load_change_tin_counts',
-            offset: append ? loadedRecordsCount : 0,
+            offset: offset,
             limit: recordsPerPage,
             nonce: '<?php echo wp_create_nonce('hcr_change_tin_nonce'); ?>'
         };
@@ -393,9 +395,10 @@ jQuery(document).ready(function($) {
         $.post(ajaxurl, data, function(response) {
             if (response.success && response.data.counts) {
                 var counts = response.data.counts;
+                totalCount = response.data.total_count || 0;
                 var html = '';
 
-                if (counts.length === 0 && !append) {
+                if (counts.length === 0) {
                     html = '<tr><td colspan="7" style="text-align: center; padding: 20px;">No counts found.</td></tr>';
                 } else {
                     counts.forEach(function(count) {
@@ -420,28 +423,67 @@ jQuery(document).ready(function($) {
                     });
                 }
 
-                if (append) {
-                    $('#history-tbody').append(html);
-                } else {
-                    $('#history-tbody').html(html);
-                    loadedRecordsCount = 0;
-                }
-
-                loadedRecordsCount += counts.length;
-
-                // Show/hide "Load More" button
-                if (response.data.has_more) {
-                    $('#load-more-btn').show();
-                } else {
-                    $('#load-more-btn').hide();
-                }
+                $('#history-tbody').html(html);
+                renderPagination();
             }
         });
     }
 
-    // Load More button
-    $('#load-more-btn').on('click', function() {
-        loadHistory(true);
+    // Render pagination controls
+    function renderPagination() {
+        var totalPages = Math.ceil(totalCount / recordsPerPage);
+        var paginationHtml = '';
+
+        if (totalPages > 1) {
+            paginationHtml += '<div style="text-align: center;">';
+            paginationHtml += '<span style="margin-right: 10px;">' + totalCount + ' items</span>';
+
+            // Previous button
+            if (currentPage > 1) {
+                paginationHtml += '<button type="button" class="button history-page-btn" data-page="' + (currentPage - 1) + '">&laquo;</button> ';
+            }
+
+            // Page numbers
+            var startPage = Math.max(1, currentPage - 2);
+            var endPage = Math.min(totalPages, currentPage + 2);
+
+            if (startPage > 1) {
+                paginationHtml += '<button type="button" class="button history-page-btn" data-page="1">1</button> ';
+                if (startPage > 2) {
+                    paginationHtml += '<span>...</span> ';
+                }
+            }
+
+            for (var i = startPage; i <= endPage; i++) {
+                if (i === currentPage) {
+                    paginationHtml += '<button type="button" class="button button-primary" disabled>' + i + '</button> ';
+                } else {
+                    paginationHtml += '<button type="button" class="button history-page-btn" data-page="' + i + '">' + i + '</button> ';
+                }
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    paginationHtml += '<span>...</span> ';
+                }
+                paginationHtml += '<button type="button" class="button history-page-btn" data-page="' + totalPages + '">' + totalPages + '</button> ';
+            }
+
+            // Next button
+            if (currentPage < totalPages) {
+                paginationHtml += '<button type="button" class="button history-page-btn" data-page="' + (currentPage + 1) + '">&raquo;</button>';
+            }
+
+            paginationHtml += '</div>';
+        }
+
+        $('#history-pagination').html(paginationHtml);
+    }
+
+    // Page button click handler
+    $(document).on('click', '.history-page-btn', function() {
+        var page = parseInt($(this).data('page'));
+        loadHistory(page);
     });
 
     // View count details
