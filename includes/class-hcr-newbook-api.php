@@ -107,6 +107,14 @@ class HCR_Newbook_API {
                 continue;
             }
 
+            // Skip balance transfers (system-generated transactions that always balance out)
+            $payment_type = $transaction['payment_type'] ?? '';
+            $payment_type_lower = strtolower($payment_type);
+            if (strpos($payment_type_lower, 'balance transfer') !== false ||
+                strpos($payment_type_lower, 'account transfer') !== false) {
+                continue;
+            }
+
             // In Newbook, payments are negative and refunds are positive (account perspective)
             // For reconciliation, we want payments positive and refunds negative (revenue perspective)
             // Voided payments are positive (like refunds) and voided refunds are negative (like payments)
@@ -173,6 +181,14 @@ class HCR_Newbook_API {
             // Skip non-payment items (but include refunds and voided transactions)
             $item_type = $transaction['item_type'] ?? '';
             if (!in_array($item_type, ['payments_raised', 'refunds_raised', 'payments_voided', 'refunds_voided'])) {
+                continue;
+            }
+
+            // Skip balance transfers (system-generated transactions that always balance out)
+            $payment_type = $transaction['payment_type'] ?? '';
+            $payment_type_lower = strtolower($payment_type);
+            if (strpos($payment_type_lower, 'balance transfer') !== false ||
+                strpos($payment_type_lower, 'account transfer') !== false) {
                 continue;
             }
 
@@ -387,6 +403,13 @@ class HCR_Newbook_API {
                 $ticket_number = $matches[1];
                 $payment_type = trim($matches[2]);
 
+                // Skip balance transfers (system-generated transactions that always balance out)
+                $payment_type_lower = strtolower($payment_type);
+                if (strpos($payment_type_lower, 'balance transfer') !== false ||
+                    strpos($payment_type_lower, 'account transfer') !== false) {
+                    continue;
+                }
+
                 // Convert from Newbook accounting (payments negative, refunds positive)
                 // to revenue perspective (payments positive, refunds negative) for variance calculation
                 $raw_amount = floatval($transaction['item_amount'] ?? 0);
@@ -481,6 +504,13 @@ class HCR_Newbook_API {
             $time = $transaction['item_date'] ?? '';
             $booking_id = $transaction['booking_id'] ?? '';
             $account_name = $transaction['account_for_name'] ?? '';
+
+            // Skip balance transfers (system-generated transactions that always balance out)
+            $payment_type_lower = strtolower($payment_type);
+            if (strpos($payment_type_lower, 'balance transfer') !== false ||
+                strpos($payment_type_lower, 'account transfer') !== false) {
+                continue;
+            }
 
             // Determine if this is a voided transaction for special formatting
             $is_voided = ($item_type === 'payments_voided' || $item_type === 'refunds_voided');
