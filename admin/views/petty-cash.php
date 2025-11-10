@@ -142,6 +142,11 @@ $all_denominations = array_filter($all_denominations, function($denom) {
         </form>
     </div>
 
+    <!-- Selection Tooltip -->
+    <div id="selection-tooltip" style="display: none; position: fixed; bottom: 20px; right: 20px; background: #f9f9f9; border: 2px solid #0078d4; padding: 10px 15px; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 10000; font-size: 13px;">
+        <div id="tooltip-content"></div>
+    </div>
+
     <!-- History Section -->
     <div class="hcr-petty-cash-history" style="background: #fff; padding: 20px; margin: 20px 0; border: 1px solid #ccc;">
         <h2>Count History</h2>
@@ -208,6 +213,18 @@ $all_denominations = array_filter($all_denominations, function($denom) {
 }
 .status-balanced {
     background-color: green;
+}
+
+/* Excel-like cell selection */
+.widefat td.hcr-cell-selected,
+.widefat th.hcr-cell-selected {
+    background-color: #cce4ff !important;
+    outline: 2px solid #0078d4;
+    outline-offset: -2px;
+}
+
+.widefat td:hover {
+    box-shadow: inset 0 0 0 1px #4a90e2;
 }
 </style>
 
@@ -675,5 +692,170 @@ jQuery(document).ready(function($) {
 
     // Initial load
     loadHistory(false);
+
+    // Excel-like cell selection for denomination count table
+    var selectedCells = [];
+    var selectionAnchor = null;
+    var isSelecting = false;
+
+    function enhanceTableSelection() {
+        $('.hcr-petty-cash-form table.widefat').off('mousedown mouseenter mouseup dblclick');
+        $(document).off('copy.pettycash mouseup.pettycash');
+
+        // Mouse down starts selection
+        $('.hcr-petty-cash-form table.widefat').on('mousedown', 'td, th', function(e) {
+            var $cell = $(this);
+            if (e.shiftKey && selectionAnchor) {
+                e.preventDefault();
+                selectCellRange(selectionAnchor, this);
+            } else {
+                clearSelection();
+                selectionAnchor = this;
+                isSelecting = true;
+                $cell.addClass('hcr-cell-selected');
+                selectedCells = [this];
+                updateSelectionTooltip();
+            }
+        });
+
+        // Mouse enter while selecting extends selection
+        $('.hcr-petty-cash-form table.widefat').on('mouseenter', 'td, th', function(e) {
+            if (isSelecting && selectionAnchor) {
+                selectCellRange(selectionAnchor, this);
+            }
+        });
+
+        // Mouse up ends selection
+        $(document).on('mouseup.pettycash', function() {
+            isSelecting = false;
+        });
+
+        // Double-click selects cell text
+        $('.hcr-petty-cash-form table.widefat').on('dblclick', 'td, th', function() {
+            var selection = window.getSelection();
+            var range = document.createRange();
+            range.selectNodeContents(this);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        });
+
+        // Make cells focusable
+        $('.hcr-petty-cash-form table.widefat td, .hcr-petty-cash-form table.widefat th').attr('tabindex', '0');
+
+        // Handle copy (Ctrl+C / Cmd+C)
+        $(document).on('copy.pettycash', function(e) {
+            if (selectedCells.length > 0 && $(selectedCells[0]).closest('.hcr-petty-cash-form table.widefat').length) {
+                e.preventDefault();
+                copySelectedCellsToClipboard(e.originalEvent);
+            }
+        });
+    }
+
+    function selectCellRange(start, end) {
+        clearSelection();
+        var $table = $(start).closest('table');
+        var $start = $(start);
+        var $end = $(end);
+        var $allRows = $table.find('tr');
+
+        var startRow = $allRows.index($start.parent());
+        var startCol = $start.index();
+        var endRow = $allRows.index($end.parent());
+        var endCol = $end.index();
+
+        var minRow = Math.min(startRow, endRow);
+        var maxRow = Math.max(startRow, endRow);
+        var minCol = Math.min(startCol, endCol);
+        var maxCol = Math.max(startCol, endCol);
+
+        for (var row = minRow; row <= maxRow; row++) {
+            var $row = $allRows.eq(row);
+            var $cells = $row.children('td, th');
+            for (var col = minCol; col <= maxCol; col++) {
+                var cell = $cells.eq(col)[0];
+                if (cell) {
+                    $(cell).addClass('hcr-cell-selected');
+                    selectedCells.push(cell);
+                }
+            }
+        }
+
+        updateSelectionTooltip();
+    }
+
+    function clearSelection() {
+        $('.hcr-cell-selected').removeClass('hcr-cell-selected');
+        selectedCells = [];
+        $('#selection-tooltip').hide();
+    }
+
+    function updateSelectionTooltip() {
+        if (selectedCells.length === 0) {
+            $('#selection-tooltip').hide();
+            return;
+        }
+
+        var count = selectedCells.length;
+        var sum = 0;
+        var numericCount = 0;
+
+        selectedCells.forEach(function(cell) {
+            var text = $(cell).text().trim();
+            // Remove currency symbols and commas, then parse
+            var value = parseFloat(text.replace(/[£,]/g, ''));
+            if (!isNaN(value)) {
+                sum += value;
+                numericCount++;
+            }
+        });
+
+        var tooltipText = '<strong>Selected:</strong> ' + count + ' cell' + (count !== 1 ? 's' : '');
+        if (numericCount > 0) {
+            tooltipText += ' | <strong>Sum:</strong> £' + sum.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if (numericCount > 1) {
+                var avg = sum / numericCount;
+                tooltipText += ' | <strong>Avg:</strong> £' + avg.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            }
+        }
+
+        $('#tooltip-content').html(tooltipText);
+        $('#selection-tooltip').show();
+    }
+
+    function copySelectedCellsToClipboard(event) {
+        if (selectedCells.length === 0) return;
+
+        var $table = $(selectedCells[0]).closest('table');
+        var $allRows = $table.find('tr');
+
+        var cellsByRow = {};
+        selectedCells.forEach(function(cell) {
+            var $cell = $(cell);
+            var rowIndex = $allRows.index($cell.parent());
+            if (!cellsByRow[rowIndex]) {
+                cellsByRow[rowIndex] = [];
+            }
+            cellsByRow[rowIndex].push({
+                col: $cell.index(),
+                text: $cell.text().trim()
+            });
+        });
+
+        var rows = Object.keys(cellsByRow).sort(function(a, b) { return a - b; });
+        var clipboardText = '';
+
+        rows.forEach(function(rowIndex) {
+            var cells = cellsByRow[rowIndex].sort(function(a, b) { return a.col - b.col; });
+            var rowText = cells.map(function(c) { return c.text; }).join('\t');
+            clipboardText += rowText + '\n';
+        });
+
+        if (event.clipboardData) {
+            event.clipboardData.setData('text/plain', clipboardText);
+        }
+    }
+
+    // Initialize Excel-like selection
+    enhanceTableSelection();
 });
 </script>

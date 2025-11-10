@@ -134,6 +134,11 @@ rsort($all_denominations);
         </form>
     </div>
 
+    <!-- Selection Tooltip -->
+    <div id="selection-tooltip" style="display: none; position: fixed; bottom: 20px; right: 20px; background: #f9f9f9; border: 2px solid #0078d4; padding: 10px 15px; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 10000; font-size: 13px;">
+        <div id="tooltip-content"></div>
+    </div>
+
     <!-- History Section -->
     <div class="hcr-safe-cash-history" style="background: #fff; padding: 20px; margin: 20px 0; border: 1px solid #ccc;">
         <h2>Count History</h2>
@@ -693,6 +698,7 @@ jQuery(document).ready(function($) {
                 isSelecting = true;
                 $cell.addClass('hcr-cell-selected');
                 selectedCells = [this];
+                updateSelectionTooltip();
             }
         });
 
@@ -757,11 +763,47 @@ jQuery(document).ready(function($) {
                 }
             }
         }
+
+        updateSelectionTooltip();
     }
 
     function clearSelection() {
         $('.hcr-cell-selected').removeClass('hcr-cell-selected');
         selectedCells = [];
+        $('#selection-tooltip').hide();
+    }
+
+    function updateSelectionTooltip() {
+        if (selectedCells.length === 0) {
+            $('#selection-tooltip').hide();
+            return;
+        }
+
+        var count = selectedCells.length;
+        var sum = 0;
+        var numericCount = 0;
+
+        selectedCells.forEach(function(cell) {
+            var text = $(cell).text().trim();
+            // Remove currency symbols and commas, then parse
+            var value = parseFloat(text.replace(/[£,]/g, ''));
+            if (!isNaN(value)) {
+                sum += value;
+                numericCount++;
+            }
+        });
+
+        var tooltipText = '<strong>Selected:</strong> ' + count + ' cell' + (count !== 1 ? 's' : '');
+        if (numericCount > 0) {
+            tooltipText += ' | <strong>Sum:</strong> £' + sum.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if (numericCount > 1) {
+                var avg = sum / numericCount;
+                tooltipText += ' | <strong>Avg:</strong> £' + avg.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            }
+        }
+
+        $('#tooltip-content').html(tooltipText);
+        $('#selection-tooltip').show();
     }
 
     function copySelectedCellsToClipboard(event) {
