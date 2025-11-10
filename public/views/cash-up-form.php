@@ -47,14 +47,10 @@ $preselected_date = isset($atts['date']) ? $atts['date'] : date('Y-m-d');
     <form id="hcr-public-cash-up-form" style="display:none;">
         <input type="hidden" name="nonce" value="<?php echo wp_create_nonce('hcr_public_nonce'); ?>">
 
-        <!-- Cash Counting Section -->
-        <h3 id="hcr-section-counting" class="hcr-section-header">Cash Counting</h3>
-        <p class="hcr-help-text">Enter EITHER quantity OR value for each denomination.</p>
-
         <div class="hcr-counting-grid">
             <!-- Till Float Count -->
             <div class="hcr-counting-section">
-                <h4>Till Float Count</h4>
+                <h3 id="hcr-section-till-float" class="hcr-section-header">Till Float Count</h3>
                 <p class="hcr-help-text">Count the float/change in the till drawer.</p>
 
                 <table class="hcr-denomination-table">
@@ -109,12 +105,12 @@ $preselected_date = isset($atts['date']) ? $atts['date'] : date('Y-m-d');
                         </tr>
                     </tfoot>
                 </table>
-                <button type="button" class="hcr-next-section-btn" data-target="hcr-section-card-machines">NEXT ›</button>
+                <button type="button" class="hcr-next-section-btn" data-target="hcr-section-takings">NEXT ›</button>
             </div>
 
             <!-- Cash Takings Banked -->
             <div class="hcr-counting-section">
-                <h4>Cash Takings Banked</h4>
+                <h3 id="hcr-section-takings" class="hcr-section-header">Cash Takings Banked</h3>
                 <p class="hcr-help-text">Count cash takings to be banked (excluding float).</p>
 
                 <table class="hcr-denomination-table">
