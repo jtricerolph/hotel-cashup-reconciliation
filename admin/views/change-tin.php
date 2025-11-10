@@ -239,6 +239,13 @@ $denom_labels = array(
 }
 
 @media print {
+    /* Clear WordPress admin styles */
+    html,
+    body {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
     /* Hide everything except the modal content */
     body * {
         visibility: hidden;
@@ -255,6 +262,8 @@ $denom_labels = array(
         background-color: transparent !important;
         height: auto !important;
         width: 100% !important;
+        left: 0 !important;
+        top: 0 !important;
     }
 
     /* Make modal content full-width */
@@ -267,6 +276,8 @@ $denom_labels = array(
         overflow: visible !important;
         box-shadow: none !important;
         border-radius: 0 !important;
+        position: relative !important;
+        left: 0 !important;
     }
 
     /* Hide buttons and non-printable elements */
