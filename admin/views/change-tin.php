@@ -240,30 +240,28 @@ $denom_labels = array(
 
 @media print {
     /* Clear WordPress admin styles */
-    html,
-    body {
+    * {
         margin: 0 !important;
         padding: 0 !important;
+        box-sizing: border-box !important;
     }
 
-    /* Hide everything except the modal content */
-    body * {
-        visibility: hidden;
+    /* Hide everything */
+    body > * {
+        display: none !important;
     }
 
-    #view-count-modal,
-    #view-count-modal * {
-        visibility: visible;
-    }
-
-    /* Hide modal overlay background */
+    /* Show only the modal */
     #view-count-modal {
-        position: static !important;
-        background-color: transparent !important;
-        height: auto !important;
-        width: 100% !important;
-        left: 0 !important;
+        display: block !important;
+        position: absolute !important;
         top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        background: transparent !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
 
     /* Make modal content full-width */
@@ -276,8 +274,7 @@ $denom_labels = array(
         overflow: visible !important;
         box-shadow: none !important;
         border-radius: 0 !important;
-        position: relative !important;
-        left: 0 !important;
+        background: transparent !important;
     }
 
     /* Hide buttons and non-printable elements */
@@ -287,12 +284,16 @@ $denom_labels = array(
 
     /* Scale content to fit on one page - more aggressive scaling */
     #modal-content {
-        padding: 3px !important;
-        font-size: 9px !important;
-        transform: scale(0.75);
+        padding: 0 !important;
+        margin: 0 !important;
+        font-size: 8px !important;
+        transform: scale(0.7);
         transform-origin: top left;
-        width: 133%;
-        max-width: 133%;
+        width: 143%;
+        max-width: 143%;
+        position: relative !important;
+        left: 0 !important;
+        top: 0 !important;
     }
 
     #modal-content h3 {
